@@ -127,21 +127,18 @@ namespace GDLibrary
         public static readonly string ControllerIDSuffix = " controller";
         #endregion
 
-        #region Primitive ids used by vertexData dictionary
+        #region Primitive IDs
         public static readonly string TexturedQuadID = "textured quad";
         public static readonly string TexturedBillboardQuadID = "textured billboard quad";
-
+        public static readonly string OriginHelperID = "XYZ origin helper";
+        public static readonly string TexturedCubeID = "textured cube";
         #endregion
 
-        #region Effect parameter ids used by the effect dictionary
-        public static readonly string LitModelsEffectID = "lit models basic effect";
-        public static readonly string UnlitModelsEffectID = "unlit models basic effect";
-        public static readonly string UnLitPrimitivesEffectID = "unlit primitives basic effect";
-        public static readonly string UnlitModelDualEffectID = "unlit models dual effect";
-        public static readonly string UnlitBillboardsEffectID = "unlit billboards effect";
-
-
-
+        #region Effect IDs
+        public static readonly string UnlitWireframePrimitivesEffectID = "unlit wireframe"; //used for helpers like XYZ axis
+        public static readonly string UnLitColoredPrimitivesEffectID = "unlit colored";
+        public static readonly string UnLitTexturedPrimitivesEffectID = "unlit textured";
+        public static readonly string UnlitBillboardsEffectID = "unlit textured billboards";
         #endregion
 
     }

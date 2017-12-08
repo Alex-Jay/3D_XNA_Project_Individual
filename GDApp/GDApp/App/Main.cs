@@ -4,23 +4,16 @@ using GDLibrary;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using JigLibX.Geometry;
-using JigLibX.Collision;
 using System.Collections.Generic;
-using System;
 using Microsoft.Xna.Framework.Media;
+using System;
+
 /*
-override Clone()
-Reticule color not resetting
 No statustype on controllers
 mouse object text interleaving with progress controller
-progress controller not receiving events to increase progress
 Z-fighting on ground plane in 3rd person mode
 Elevation angle on 3rd person view
-ScreenManager - enum - this.ScreenType = (ScreenUtilityScreenType)eventData.AdditionalEventParameters[0];
-check clone on new eventdata
 PiP
-menu - click sound
 menu transparency
 */
 
@@ -28,12 +21,14 @@ namespace GDApp
 {
     public class Main : Game
     {
+        #region Statics
+        private readonly Color GoogleGreenColor = new Color(152, 234, 224, 225);
+        #endregion
 
         #region Fields
 #if DEBUG
         //used to visualize debug info (e.g. FPS) and also to draw collision skins
         private DebugDrawer debugDrawer;
-        private PhysicsDebugDrawer physicsDebugDrawer;
 #endif
 
         GraphicsDeviceManager graphics;
@@ -46,11 +41,9 @@ namespace GDApp
         public KeyboardManager keyboardManager { get; private set; }
         public ScreenManager screenManager { get; private set; }
         public MyAppMenuManager menuManager { get; private set; }
-        public PhysicsManager physicsManager { get; private set; }
         public UIManager uiManager { get; private set; }
         public GamePadManager gamePadManager { get; private set; }
         public SoundManager soundManager { get; private set; }
-        public PickingManager pickingManager { get; private set; }
 
         //receives, handles and routes events
         public EventDispatcher eventDispatcher { get; private set; }
@@ -68,13 +61,8 @@ namespace GDApp
         private ContentDictionary<Video> videoDictionary;
         private Dictionary<string, IVertexData> vertexDataDictionary;
 
-
         private ManagerParameters managerParameters;
-
-        //demo remove later
-        private HeroPlayerObject heroPlayerObject;
-        private ModelObject drivableBoxObject;
-        private AnimatedPlayerObject animatedHeroPlayerObject;
+        private MyPrimitiveFactory primitiveFactory;
 
 
         #endregion
@@ -103,7 +91,7 @@ namespace GDApp
             int numberOfGamePadPlayers = 1;
 
             //set the title
-            Window.Title = "3DGD - My Amazing Game 1.0";
+            Window.Title = "3DGD - My Amazing Individual Game 1.0";
 
             //EventDispatcher
             InitializeEventDispatcher();
@@ -114,14 +102,17 @@ namespace GDApp
             LoadCurvesAndRails();
             LoadViewports(screenResolution);
 
-            //to draw primitives and billboards
-            LoadVertexData();
+            //factory to produce primitives
+            LoadFactories();
 
             //Effects
             InitializeEffects();
 
             //Managers
             InitializeManagers(screenResolution, screenType, isMouseVisible, numberOfGamePadPlayers);
+
+            //camera(s)
+            InitializeCameraDemo(screenResolution);
 
             //menu and UI elements
             AddMenuElements();
@@ -130,29 +121,15 @@ namespace GDApp
             InitializeDebugTextInfo();
 #endif
 
-            //load game happens before cameras are loaded because we may add a third person camera that needs a reference to a loaded Actor
-            LoadGame(gameLevel);
-
-            //Initialize cameras based on the desired screen layout
-            if (screenType == ScreenUtility.ScreenType.SingleScreen)
-            {
-                InitializeCollidableFirstPersonDemo(screenResolution);
-                //or
-                //InitializeSingleScreenCycleableCameraDemo(screenResolution);
-                //or
-                InitializeCollidableThirdPersonDemo(screenResolution);
-            }
-            else if (screenType == ScreenUtility.ScreenType.MultiScreen)//multi-screen
-            {
-                InitializeMultiScreenCameraDemo(screenResolution);
-            }
+            //load demo happens before cameras are loaded because we may add a third person camera that needs a reference to a loaded Actor
+            LoadDemoOne();
 
             //Publish Start Event(s)
             StartGame();
 
-#if DEBUG
-            InitializeDebugCollisionSkinInfo();
-#endif
+            //#if DEBUG
+            //            InitializeDebugCollisionSkinInfo();
+            //#endif
 
             base.Initialize();
         }
@@ -179,13 +156,9 @@ namespace GDApp
                 this.objectManager, this.cameraManager, this.keyboardManager,
                 AppData.KeyPauseShowMenu, this.eventDispatcher, StatusType.Off);
             Components.Add(this.screenManager);
-
-            //CD-CR using JigLibX and add debug drawer to visualise collision skins
-            this.physicsManager = new PhysicsManager(this, this.eventDispatcher, StatusType.Off, AppData.BigGravity);
-            Components.Add(this.physicsManager);
-
+      
             //add mouse manager
-            this.mouseManager = new MouseManager(this, isMouseVisible, this.physicsManager);
+            this.mouseManager = new MouseManager(this, isMouseVisible);
             Components.Add(this.mouseManager);
 
             //add gamepad manager
@@ -211,16 +184,7 @@ namespace GDApp
                 this.cameraManager, this.mouseManager, this.keyboardManager, this.gamePadManager, this.screenManager, this.soundManager);
 
             #region Pick Manager
-            //call this function anytime we want to decide if a mouse over object is interesting to the PickingManager
-            //See https://www.codeproject.com/Articles/114931/Understanding-Predicate-Delegates-in-C
-            Predicate<CollidableObject> collisionPredicate = new Predicate<CollidableObject>(CollisionUtility.IsCollidableObjectOfInterest);
-            //create the projectile archetype that the manager can fire
 
-            //listens for picking with the mouse on valid (based on specified predicate) collidable objects and pushes notification events to listeners
-            this.pickingManager = new PickingManager(this, this.eventDispatcher, StatusType.Off, 
-                this.managerParameters, 
-                PickingBehaviourType.PickAndPlace, AppData.PickStartDistance, AppData.PickEndDistance, collisionPredicate);
-            Components.Add(this.pickingManager);
             #endregion
         }
 
@@ -257,31 +221,6 @@ namespace GDApp
 
         private void LoadAssets()
         {
-            #region Models
-            //geometric samples
-            this.modelDictionary.Load("Assets/Models/plane1", "plane1");
-            this.modelDictionary.Load("Assets/Models/plane", "plane");
-            this.modelDictionary.Load("Assets/Models/box2", "box2");
-            this.modelDictionary.Load("Assets/Models/torus");
-            this.modelDictionary.Load("Assets/Models/sphere");
-
-            //triangle mesh high/low poly demo
-            this.modelDictionary.Load("Assets/Models/teapot");
-            this.modelDictionary.Load("Assets/Models/teapot_mediumpoly");
-            this.modelDictionary.Load("Assets/Models/teapot_lowpoly");
-
-            //player - replace with animation eventually
-            this.modelDictionary.Load("Assets/Models/cylinder");
-
-            //architecture
-            this.modelDictionary.Load("Assets/Models/Architecture/Buildings/house");
-            this.modelDictionary.Load("Assets/Models/Architecture/Walls/wall");
-
-            //dual texture demo
-            this.modelDictionary.Load("Assets/Models/box");
-            this.modelDictionary.Load("Assets/Models/box1");
-            #endregion
-
             #region Textures
             //environment
             this.textureDictionary.Load("Assets/Textures/Props/Crates/crate1"); //demo use of the shorter form of Load() that generates key from asset name
@@ -295,9 +234,6 @@ namespace GDApp
             this.textureDictionary.Load("Assets/Textures/Skybox/front");
             this.textureDictionary.Load("Assets/Textures/Foliage/Trees/tree2");
 
-            //dual texture demo
-            this.textureDictionary.Load("Assets/Textures/Foliage/Ground/grass_midlevel");
-            this.textureDictionary.Load("Assets/Textures/Foliage/Ground/grass_highlevel");
 
             //menu - buttons
             this.textureDictionary.Load("Assets/Textures/UI/Menu/Buttons/genericbtn");
@@ -312,9 +248,6 @@ namespace GDApp
             this.textureDictionary.Load("Assets/Textures/UI/HUD/reticuleDefault");
             this.textureDictionary.Load("Assets/Textures/UI/HUD/progress_gradient");
 
-            //architecture
-            this.textureDictionary.Load("Assets/Textures/Architecture/Buildings/house-low-texture");
-            this.textureDictionary.Load("Assets/Textures/Architecture/Walls/wall");
 
             //dual texture demo - see Main::InitializeCollidableGround()
             this.textureDictionary.Load("Assets/GDDebug/Textures/checkerboard_greywhite");
@@ -338,20 +271,6 @@ namespace GDApp
             #region Video
             this.videoDictionary.Load("Assets/Video/sample");
             #endregion
-
-            #region Animations
-            //contains a single animation "Take001"
-            this.modelDictionary.Load("Assets/Models/Animated/dude");
-
-            //squirrel - one file per animation
-            this.modelDictionary.Load("Assets/Models/Animated/Squirrel/Red_Idle");
-            this.modelDictionary.Load("Assets/Models/Animated/Squirrel/Red_Jump");
-            this.modelDictionary.Load("Assets/Models/Animated/Squirrel/Red_Punch");
-            this.modelDictionary.Load("Assets/Models/Animated/Squirrel/Red_Standing");
-            this.modelDictionary.Load("Assets/Models/Animated/Squirrel/Red_Tailwhip");
-            this.modelDictionary.Load("Assets/Models/Animated/Squirrel/RedRun4");
-            #endregion
-
         }
 
         private void LoadCurvesAndRails()
@@ -373,36 +292,6 @@ namespace GDApp
             #region Rails
             //create the track to be applied to the non-collidable track camera 1
             this.railDictionary.Add("rail1 - parallel to x-axis", new RailParameters("rail1 - parallel to x-axis", new Vector3(-80, 10, 40), new Vector3(80, 10, 40)));
-            #endregion
-
-        }
-
-        private void LoadVertexData()
-        {
-            Microsoft.Xna.Framework.Graphics.PrimitiveType primitiveType;
-            int primitiveCount;
-            IVertexData vertexData = null;
-
-            #region Textured Quad
-            //get vertices for textured quad
-            VertexPositionColorTexture[] vertices = VertexFactory.GetTextureQuadVertices(out primitiveType, out primitiveCount);
-
-            //make a vertex data object to store and draw the vertices
-            vertexData = new BufferedVertexData<VertexPositionColorTexture>(this.graphics.GraphicsDevice, vertices, primitiveType, primitiveCount);
-
-            //add to the dictionary for use by things like billboards - see InitializeBillboards()
-            this.vertexDataDictionary.Add(AppData.TexturedQuadID, vertexData);
-            #endregion
-
-            #region Billboard Quad - we must use this type when creating billboards
-            // get vertices for textured billboard
-            VertexBillboard[] verticesBillboard = VertexFactory.GetVertexBillboard(1, out primitiveType, out primitiveCount);
-            
-            //make a vertex data object to store and draw the vertices
-            vertexData = new BufferedVertexData<VertexBillboard>(this.graphics.GraphicsDevice, verticesBillboard, primitiveType, primitiveCount);
-
-            //add to the dictionary for use by things like billboards - see InitializeBillboards()
-            this.vertexDataDictionary.Add(AppData.TexturedBillboardQuadID, vertexData);
             #endregion
 
         }
@@ -435,6 +324,12 @@ namespace GDApp
                 verticalOffset,  viewPortDimensions.X, viewPortDimensions.Y));
         }
 
+        private void LoadFactories()
+        {
+            this.primitiveFactory = new MyPrimitiveFactory();
+        }
+
+
 #if DEBUG
         private void InitializeDebugTextInfo()
         {
@@ -447,556 +342,98 @@ namespace GDApp
 
         private void InitializeDebugCollisionSkinInfo()
         {
-            //show the collision skins
-            this.physicsDebugDrawer = new PhysicsDebugDrawer(this, this.cameraManager, this.objectManager,
-                this.screenManager, this.eventDispatcher, StatusType.Off);
-            Components.Add(this.physicsDebugDrawer);
+
         }
 #endif
         #endregion
 
         #region Load Game Content
-        //load the contents for the level specified
-        private void LoadGame(int level)
+        //load the contents for the demo specified
+        private void LoadDemoOne()
         {
-            int worldScale = 250;
+            //add helpers to help us orient ourself
+            InitializeHelperPrimitives();
 
-            //Non - collidable
-            InitializeNonCollidableSkyBox(worldScale);
-            //InitializeNonCollidableFoliage(worldScale);
-            //InitializeNonCollidableDriveableObject();
-            //InitializeNonCollidableDecoratorObjects();
+            //add unlit quads
+            InitializeQuadPrimitives();
 
-            //Collidable
-            InitializeCollidableGround(worldScale);
-            //demo high vertex count trianglemesh
-            InitializeStaticCollidableTriangleMeshObjects();
-            //demo medium and low vertex count trianglemesh
-            InitializeStaticCollidableMediumPolyTriangleMeshObjects();
-            InitializeStaticCollidableLowPolyTriangleMeshObjects();
-            //demo dynamic collidable objects with user-defined collision primitives
-            InitializeDynamicCollidableObjects();
-
-            ////adds the hero of the game - see InitializeSingleScreenFirstThirdPersonDemo()
-            //InitializeCollidableHeroPlayerObject();
-
-            ////add level elements
-            InitializeBuildings();
-            InitializeWallsFences();
-
-            //add video display
-            InitializeVideoDisplay();
-
-            //add animated characters
-            bool bTheDudeAbides = true;
-            if (bTheDudeAbides)
-                InitializeDudeAnimatedPlayer();
-            else
-                InitializeSquirrelAnimatedPlayer();
-            
-
-            ////add primitive objects - where developer defines the vertices manually
-            InitializePrimitives();
+            //add unlit cubes
+            InitializeCubePrimitives();
 
         }
 
-        private void InitializePrimitives()
+        private void InitializeHelperPrimitives()
         {
-            //get a copy of the effect parameters
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnLitPrimitivesEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-            effectParameters.DiffuseColor = Color.Yellow;
-            effectParameters.Alpha = 0.4f;
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnlitWireframePrimitivesEffectID] as BasicEffectParameters;
+            //since its wireframe we dont set color, texture, alpha etc.
 
-            //define location
-            Transform3D transform = new Transform3D(new Vector3(0, 40, 0), new Vector3(40, 4, 1));
+            //get a reference to the origin helper
+            PrimitiveObject wireframeOrigin = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.WireframeOrigin, effectParameters);
+            
+            //make it a little more visible!
+            wireframeOrigin.Transform.Scale *= 2;
+            
+            //add to the object manager
+            this.objectManager.Add(wireframeOrigin);
 
-            //create primitive
-            PrimitiveObject primitiveObject = new PrimitiveObject("simple primitive", ActorType.Primitive,
-                transform, effectParameters, StatusType.Drawn | StatusType.Update, this.vertexDataDictionary[AppData.TexturedQuadID]);
-           
-            PrimitiveObject clonedPrimitiveObject = null;
+        }
+        private void InitializeQuadPrimitives()
+        {
+            PrimitiveObject clonedObject = null;
 
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnLitColoredPrimitivesEffectID] as BasicEffectParameters;
+            effectParameters.DiffuseColor = Color.Red;
+
+            //get the archetype from the factory
+            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.ColoredQuad, effectParameters);
+
+            //make some copies
             for (int i = 1; i <= 4; i++)
             {
-                clonedPrimitiveObject = primitiveObject.Clone() as PrimitiveObject;
-                clonedPrimitiveObject.Transform.Translation += new Vector3(0, 5 * i, 0);
-
+                clonedObject = archetypeObject.Clone() as PrimitiveObject;
+                
+                //change id, re-position, scale and change alpha for fun
+                clonedObject.ID = "Spinning thing " + i;
+                clonedObject.Transform.Translation += new Vector3(0, 5 * i, 0);
+                clonedObject.Transform.Scale = new Vector3(4 * i, 2, 1);
+                clonedObject.EffectParameters.Alpha = i * 0.25f;
+                
                 //we could also attach controllers here instead to give each a different rotation
-                clonedPrimitiveObject.AttachController(new RotationController("rot controller", ControllerType.Rotation, new Vector3(0.1f * i, 0, 0)));
+                clonedObject.AttachController(new RotationController("rot controller", ControllerType.Rotation, new Vector3(0.1f * i, 0, 0)));
 
                 //add to manager
-                this.objectManager.Add(clonedPrimitiveObject);
-            } 
+                this.objectManager.Add(clonedObject);
+            }
 
         }
-  
-        private void InitializeSquirrelAnimatedPlayer()
+        private void InitializeCubePrimitives()
         {
-            Transform3D transform3D = null;
+            PrimitiveObject clonedObject = null;
 
-            transform3D = new Transform3D(new Vector3(0, 20, 30),
-                new Vector3(-90, 0, 0), //y-z are reversed because the capsule is rotation by 90 degrees around X-axis - See CharacterObject constructor
-                 2f * Vector3.One, 
-                 Vector3.UnitX, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.DiffuseColor = Color.OrangeRed;
-            //no specular, emissive, directional lights
-            //if we dont specify a texture then the object manager will draw using whatever textures were baked into the animation in 3DS Max
-            effectParameters.Texture =  this.textureDictionary["checkerboard_greywhite"];
-
-            this.animatedHeroPlayerObject = new SquirrelAnimatedPlayerObject("squirrel",
-            ActorType.Player, transform3D,
-                effectParameters,
-                AppData.PlayerOneMoveKeys,
-                AppData.PlayerRadius,
-                AppData.PlayerHeight,
-                1, 1,  //accel, decel
-                AppData.SquirrelPlayerMoveSpeed,
-                AppData.SquirrelPlayerRotationSpeed,
-                AppData.PlayerJumpHeight,
-                new Vector3(0, 0, 0), //offset inside capsule
-                this.keyboardManager);
-            this.animatedHeroPlayerObject.Enable(false, AppData.PlayerMass);
-
-            //add the animations
-            string takeName = "Take 001";
-            string fileNameNoSuffix = "Red_Idle";
-            this.animatedHeroPlayerObject.AddAnimation(takeName, fileNameNoSuffix, this.modelDictionary[fileNameNoSuffix]);
-            fileNameNoSuffix = "Red_Jump";
-            this.animatedHeroPlayerObject.AddAnimation(takeName, fileNameNoSuffix, this.modelDictionary[fileNameNoSuffix]);
-            fileNameNoSuffix = "Red_Punch";
-            this.animatedHeroPlayerObject.AddAnimation(takeName, fileNameNoSuffix, this.modelDictionary[fileNameNoSuffix]);
-            fileNameNoSuffix = "Red_Standing";
-            this.animatedHeroPlayerObject.AddAnimation(takeName, fileNameNoSuffix, this.modelDictionary[fileNameNoSuffix]);
-            fileNameNoSuffix = "Red_Tailwhip";
-            this.animatedHeroPlayerObject.AddAnimation(takeName, fileNameNoSuffix, this.modelDictionary[fileNameNoSuffix]);
-            fileNameNoSuffix = "RedRun4";
-            this.animatedHeroPlayerObject.AddAnimation(takeName, fileNameNoSuffix, this.modelDictionary[fileNameNoSuffix]);
-
-            //set the start animtion
-            this.animatedHeroPlayerObject.SetAnimation("Take 001", "Red_Idle");
-
-            this.objectManager.Add(animatedHeroPlayerObject);
-
-        }
-
-        private void InitializeDudeAnimatedPlayer()
-        {
-            Transform3D transform3D = null;
-
-            transform3D = new Transform3D(new Vector3(0, 20, 40),
-                new Vector3(-90, 0, 0), //y-z are reversed because the capsule is rotation by 90 degrees around X-axis - See CharacterObject constructor
-                 0.1f * Vector3.One,
-                 -Vector3.UnitZ, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            //remember we can set diffuse color and alpha too but not specular, emissive, directional lights as I dont read those parameters in ObjectManager::DrawObject() - this was purely a time constraint on my part.
-            effectParameters.DiffuseColor = Color.White;
-            effectParameters.Alpha = 1;
-            //if we dont specify a texture then the object manager will draw using whatever textures were baked into the animation in 3DS Max
-            effectParameters.Texture = null;
-
-            this.animatedHeroPlayerObject = new DudeAnimatedPlayerObject("dude",
-                    ActorType.Player, transform3D,
-                effectParameters,
-                AppData.SquirrelPlayerMoveKeys,
-                AppData.PlayerRadius,
-                AppData.PlayerHeight,
-                1, 1,  //accel, decel
-                AppData.DudeMoveSpeed,
-                AppData.DudeRotationSpeed,
-                AppData.DudeJumpHeight,
-                new Vector3(0, -3.5f, 0), //offset inside capsule - purely cosmetic
-                this.keyboardManager);
-            this.animatedHeroPlayerObject.Enable(false, AppData.PlayerMass);
-
-            string takeName = "Take 001";
-            string fileNameNoSuffix = "dude";
-            this.animatedHeroPlayerObject.AddAnimation(takeName, fileNameNoSuffix, this.modelDictionary[fileNameNoSuffix]);
-
-            //set the start animtion
-            this.animatedHeroPlayerObject.SetAnimation("Take 001", "dude"); //basically take name (default from 3DS Max) and FBX file name with no suffix
-
-            this.objectManager.Add(animatedHeroPlayerObject);
-
-        }
-
-        private void InitializeCollidableHeroPlayerObject()
-        {
-            Transform3D transform = new Transform3D(new Vector3(0, 25, 20), 
-                new Vector3(90,0,0),
-                new Vector3(1,3.5f,1), -Vector3.UnitZ, Vector3.UnitY);
-
-            //clone the dictionary effect and set unique properties for the hero player object
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-
-            //make the hero a field since we need to point the third person camera controller at this object
-            this.heroPlayerObject = new HeroPlayerObject(AppData.PlayerOneID, 
-                AppData.PlayerOneProgressControllerID, //used to increment/decrement progress on pickup, win, or lose
-                ActorType.Player, transform, 
-                effectParameters,  
-                this.modelDictionary["cylinder"], 
-                AppData.PlayerTwoMoveKeys,
-                3, 6,
-                1.8f, 1.7f,
-                AppData.PlayerJumpHeight,
-                new Vector3(0, 3, 0), 
-                this.keyboardManager);
-            this.heroPlayerObject.Enable(false, AppData.PlayerMass);
-
-            //don't forget to add it - or else we wont see it!
-            this.objectManager.Add(this.heroPlayerObject);
-        }
-
-        //skybox is a non-collidable series of ModelObjects with no lighting
-        private void InitializeNonCollidableSkyBox(int worldScale)
-        {
-            //first we will create a prototype plane and then simply clone it for each of the skybox decorator elements (e.g. ground, front, top etc). 
-            Transform3D transform = new Transform3D(new Vector3(0, 0, 0), new Vector3(worldScale, 1, worldScale));
-
-            //clone the dictionary effect and set unique properties for the hero player object
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnlitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-
-            //create a archetype to use for cloning
-            ModelObject planePrototypeModelObject = new ModelObject("plane1", ActorType.Decorator, transform, effectParameters, this.modelDictionary["plane1"]);
-
-            //will be re-used for all planes
-            ModelObject clonePlane = null;
-
-            #region Skybox
-            //add the back skybox plane
-            clonePlane = (ModelObject)planePrototypeModelObject.Clone();
-            clonePlane.EffectParameters.Texture = this.textureDictionary["back"];
-            //rotate the default plane 90 degrees around the X-axis (use the thumb and curled fingers of your right hand to determine +ve or -ve rotation value)
-            clonePlane.Transform.Rotation = new Vector3(90, 0, 0);
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnLitTexturedPrimitivesEffectID] as BasicEffectParameters;
             
-            /*
-             * Move the plane back to meet with the back edge of the grass (by based on the original 3DS Max model scale)
-             * Note:
-             * - the interaction between 3DS Max and XNA units which result in the scale factor used below (i.e. 1 x 2.54 x worldScale)/2
-             * - that I move the plane down a little on the Y-axiz, purely for aesthetic purposes
-             */
-            clonePlane.Transform.Translation = new Vector3(0, 0, (-2.54f * worldScale) / 2.0f);
-            this.objectManager.Add(clonePlane);
+            //get the archetype from the factory
+            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.TexturedCube, effectParameters);
+            
+            //set texture once so all clones have the same
+            archetypeObject.EffectParameters.Texture = this.textureDictionary["crate1"];
 
-            //As an exercise the student should add the remaining 4 skybox planes here by repeating the clone, texture assignment, rotation, and translation steps above...
-            //add the left skybox plane
-            clonePlane = (ModelObject)planePrototypeModelObject.Clone();
-            clonePlane.EffectParameters.Texture = this.textureDictionary["left"];
-            clonePlane.Transform.Rotation = new Vector3(90, 90, 0);
-            clonePlane.Transform.Translation = new Vector3((-2.54f * worldScale) / 2.0f, 0, 0);
-            this.objectManager.Add(clonePlane);
-
-            //add the right skybox plane
-            clonePlane = (ModelObject)planePrototypeModelObject.Clone();
-            clonePlane.EffectParameters.Texture = this.textureDictionary["right"];
-            clonePlane.Transform.Rotation = new Vector3(90, -90, 0);
-            clonePlane.Transform.Translation = new Vector3((2.54f * worldScale) / 2.0f, 0, 0);
-            this.objectManager.Add(clonePlane);
-
-            //add the top skybox plane
-            clonePlane = (ModelObject)planePrototypeModelObject.Clone();
-            clonePlane.EffectParameters.Texture = this.textureDictionary["sky"];
-            //notice the combination of rotations to correctly align the sky texture with the sides
-            clonePlane.Transform.Rotation = new Vector3(180, -90, 0);
-            clonePlane.Transform.Translation = new Vector3(0, ((2.54f * worldScale) / 2.0f), 0);
-            this.objectManager.Add(clonePlane);
-
-            //add the front skybox plane
-            clonePlane = (ModelObject)planePrototypeModelObject.Clone();
-            clonePlane.EffectParameters.Texture = this.textureDictionary["front"];
-            clonePlane.Transform.Rotation = new Vector3(-90, 0, 180);
-            clonePlane.Transform.Translation = new Vector3(0, 0, (2.54f * worldScale) / 2.0f);
-            this.objectManager.Add(clonePlane);
-            #endregion
-        }
-
-        //tree is a non-collidable ModelObject (i.e. in final game the player wont ever reach the far-distance tree) with no-lighting
-        private void InitializeNonCollidableFoliage(int worldScale)
-        {
-            //first we will create a prototype plane and then simply clone it for each of the decorator elements (e.g. trees etc). 
-            Transform3D transform = new Transform3D(new Vector3(0, 0, 0), new Vector3(worldScale, 1, worldScale));
-
-            //clone the dictionary effect and set unique properties for the hero player object
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-            //a fix to ensure that any image containing transparent pixels will be sent to the correct draw list in ObjectManager
-            effectParameters.Alpha = 0.99f;
-
-            ModelObject planePrototypeModelObject = new ModelObject("plane1", ActorType.Decorator, transform, effectParameters, this.modelDictionary["plane1"]);
-
-            //will be re-used for all planes
-            ModelObject clonePlane = null;
-
-            //tree
-            clonePlane = (ModelObject)planePrototypeModelObject.Clone();
-            clonePlane.EffectParameters.Texture = this.textureDictionary["tree2"];
-            clonePlane.Transform.Rotation = new Vector3(90, 0, 0);
-            /*
-             * ISRoT - Scale operations are applied before rotation in XNA so to make the tree tall (i.e. 10) we actually scale 
-             * along the Z-axis (remember the original plane is flat on the XZ axis) and then flip the plane to stand upright.
-             */
-            clonePlane.Transform.Scale = new Vector3(5, 1, 10);
-            //y-displacement is (10(XNA) x 2.54f(3DS Max))/2 = 12.7f
-            clonePlane.Transform.Translation = new Vector3(0, ((clonePlane.Transform.Scale.Z * 2.54f) / 2), -20);
-            this.objectManager.Add(clonePlane);
-        }
-
-        //the ground is simply a large flat box with a Box primitive collision surface attached
-        private void InitializeCollidableGround(int worldScale)
-        {
-            CollidableObject collidableObject = null;
-            Transform3D transform3D = null;
-
-            /*
-             * Note that if we use DualTextureEffectParameters then (a) we must create a model (i.e. box2.fbx) in 3DS Max with two texture channels (i.e. use Unwrap UVW twice)
-             * because each texture (diffuse and lightmap) requires a separate set of UV texture coordinates, and (b), this effect does NOT allow us to set up lighting. 
-             * Why? Well, we don't need lighting because we can bake a static lighting response into the second texture (the lightmap) in 3DS Max).
-             * 
-             * See https://knowledge.autodesk.com/support/3ds-max/learn-explore/caas/CloudHelp/cloudhelp/2016/ENU/3DSMax/files/GUID-37414F9F-5E33-4B1C-A77F-547D0B6F511A-htm.html
-             * See https://www.youtube.com/watch?v=vuHdnxkXpYo&t=453s
-             * See https://www.youtube.com/watch?v=AqiNpRmENIQ&t=1892s
-             * 
-             */
-            Model model = this.modelDictionary["box2"];
-
-            //a simple dual texture demo - dual textures can be used with a lightMap from 3DS Max using the Render to Texture setting
-            DualTextureEffectParameters effectParameters = this.effectDictionary[AppData.UnlitModelDualEffectID].Clone() as DualTextureEffectParameters;
-            effectParameters.Texture = this.textureDictionary["grass1"];
-            effectParameters.Texture2 = this.textureDictionary["checkerboard_greywhite"];
-
-            transform3D = new Transform3D(Vector3.Zero, Vector3.Zero, new Vector3(worldScale, 0.001f, worldScale), Vector3.UnitX, Vector3.UnitY);
-            collidableObject = new CollidableObject("ground", ActorType.CollidableGround, transform3D, effectParameters,  model);
-            collidableObject.AddPrimitive(new JigLibX.Geometry.Plane(transform3D.Up, transform3D.Translation), new MaterialProperties(0.8f, 0.8f, 0.7f));
-            collidableObject.Enable(true, 1); //change to false, see what happens.
-            this.objectManager.Add(collidableObject);
-        }
-
-        //Triangle mesh objects wrap a tight collision surface around complex shapes - the downside is that TriangleMeshObjects CANNOT be moved
-        private void InitializeStaticCollidableTriangleMeshObjects()
-        {
-            Transform3D transform3D = new Transform3D(new Vector3(-50, 10, 0), new Vector3(45, 45, 0), 0.1f * Vector3.One, Vector3.UnitX, Vector3.UnitY);
-            //clone the dictionary effect and set unique properties for the hero player object
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["ml"];
-            effectParameters.DiffuseColor = Color.White;
-            effectParameters.SpecularPower = 32; //pow((N, H), SpecularPower)
-            effectParameters.EmissiveColor = Color.Red;
-
-            CollidableObject collidableObject = new TriangleMeshObject("torus", ActorType.CollidableProp, transform3D, effectParameters,
-                            this.modelDictionary["torus"], new MaterialProperties(0.2f, 0.8f, 0.7f));
-            collidableObject.Enable(true, 1);
-            this.objectManager.Add(collidableObject);
-        }
-
-        //Demos use of a low-polygon model to generate the triangle mesh collision skin - saving CPU cycles on CDCR checking
-        private void InitializeStaticCollidableMediumPolyTriangleMeshObjects()
-        {
-            Transform3D transform3D = new Transform3D(new Vector3(-30, 3, 0),
-                new Vector3(0, 0, 0), 0.08f * Vector3.One, Vector3.UnitX, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-
-            CollidableObject collidableObject = new TriangleMeshObject("teapot", ActorType.CollidableProp, transform3D, effectParameters, 
-                        this.modelDictionary["teapot"], this.modelDictionary["teapot_mediumpoly"], new MaterialProperties(0.2f, 0.8f, 0.7f));
-            collidableObject.Enable(true, 1);
-            this.objectManager.Add(collidableObject);
-        }
-
-        //Demos use of a low-polygon model to generate the triangle mesh collision skin - saving CPU cycles on CDCR checking
-        private void InitializeStaticCollidableLowPolyTriangleMeshObjects()
-        {
-            Transform3D transform3D = new Transform3D(new Vector3(-10, 3, 0),
-                new Vector3(0, 0, 0), 0.08f * Vector3.One, Vector3.UnitX, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-            //lets set the diffuse color also, for fun.
-            effectParameters.DiffuseColor = Color.Blue;
-
-            CollidableObject collidableObject = new TriangleMeshObject("teapot", ActorType.CollidableProp, transform3D, effectParameters, 
-                this.modelDictionary["teapot"], this.modelDictionary["teapot_lowpoly"], new MaterialProperties(0.2f, 0.8f, 0.7f));
-            collidableObject.Enable(true, 1);
-            this.objectManager.Add(collidableObject);
-        }
-
-        //if you want objects to be collidable AND moveable then you must attach either a box, sphere, or capsule primitives to the object
-        private void InitializeDynamicCollidableObjects()
-        {
-            CollidableObject collidableObject, archetypeCollidableObject = null;
-            Model model = null;
-
-            #region Spheres
-            model = this.modelDictionary["sphere"];
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-
-            //make once then clone
-            archetypeCollidableObject = new CollidableObject("sphere ", ActorType.CollidablePickup, Transform3D.Zero, effectParameters, model);
-
-            for (int i = 0; i < 10; i++)
+            //make some copies
+            for(int i = 1; i < 600; i++)
             {
-                collidableObject = (CollidableObject)archetypeCollidableObject.Clone();
+                clonedObject = archetypeObject.Clone() as PrimitiveObject;
 
-                collidableObject.ID += i;
-                collidableObject.Transform = new Transform3D(new Vector3(-50, 100 + 10 * i, i), new Vector3(0, 0, 0),
-                    0.082f * Vector3.One, //notice theres a certain amount of tweaking the radii with reference to the collision sphere radius of 2.54f below
-                    Vector3.UnitX, Vector3.UnitY);
+                //re-position, scale
+                clonedObject.Transform.Translation += new Vector3(1 * i, 0, 0);
+               // clonedObject.Transform.Scale *= i;
 
-                collidableObject.AddPrimitive(new Sphere(collidableObject.Transform.Translation, 2.54f), new MaterialProperties(0.2f, 0.8f, 0.7f));
-                collidableObject.Enable(false, 1);
-                this.objectManager.Add(collidableObject);
-            }
-            #endregion
-
-            #region Box
-            model = this.modelDictionary["box2"];
-            effectParameters = (this.effectDictionary[AppData.LitModelsEffectID] as BasicEffectParameters).Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["crate2"];
-            //make once then clone
-            archetypeCollidableObject = new CollidableObject("box - ", ActorType.CollidablePickup, Transform3D.Zero, effectParameters, model);
-
-            int count = 0;
-            for (int i = 0; i < 5; i++)
-            {
-                for (int j = 0; j < 5; j++)
-                {
-                    collidableObject = (CollidableObject)archetypeCollidableObject.Clone();
-                    collidableObject.ID += count;
-                    count++;
-
-                    collidableObject.Transform = new Transform3D(new Vector3(25 + 5 * j, 15 + 10 * i, 0), new Vector3(0, 0, 0), new Vector3(2, 4, 1), Vector3.UnitX, Vector3.UnitY);
-                    collidableObject.AddPrimitive(new Box(collidableObject.Transform.Translation, Matrix.Identity, /*important do not change - cm to inch*/2.54f * collidableObject.Transform.Scale), new MaterialProperties(0.2f, 0.8f, 0.7f));
-
-                    //increase the mass of the boxes in the demo to see how collidable first person camera interacts vs. spheres (at mass = 1)
-                    collidableObject.Enable(false, 1);
-                    this.objectManager.Add(collidableObject);
-                }
+                //add to manager
+                this.objectManager.Add(clonedObject);
             }
 
-            #endregion
         }
-
-        //demo of a non-collidable ModelObject with attached third person controller
-        private void InitializeNonCollidableDriveableObject()
-        {
-            //place the drivable model to the left of the existing models and specify that forward movement is along the -ve z-axis
-            Transform3D transform = new Transform3D(new Vector3(-10, 5, 25), -Vector3.UnitZ, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["crate1"];
-            effectParameters.DiffuseColor = Color.Gold;
-
-            //initialise the drivable model object - we've made this variable a field to allow it to be visible to the rail camera controller - see InitializeCameras()
-            this.drivableBoxObject = new ModelObject("drivable box1", ActorType.Player, transform, effectParameters, this.modelDictionary["box2"]);
-
-            //attach a DriveController
-            drivableBoxObject.AttachController(new DriveController("driveController1", ControllerType.Drive,
-                AppData.PlayerTwoMoveKeys, AppData.PlayerMoveSpeed, AppData.PlayerStrafeSpeed, AppData.PlayerRotationSpeed,
-                this.managerParameters));
-
-            //add to the objectManager so that it will be drawn and updated
-            this.objectManager.Add(drivableBoxObject);
-        }
-
-        //demo of some semi-transparent non-collidable ModelObjects
-        private void InitializeNonCollidableDecoratorObjects()
-        {
-            //position the object
-            Transform3D transform = new Transform3D(new Vector3(0, 5, 0), Vector3.Zero, Vector3.One, Vector3.UnitX, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["crate1"];
-            effectParameters.DiffuseColor = Color.Gold;
-            effectParameters.Alpha = 0.5f;
-
-            //initialise the boxObject
-            ModelObject boxObject = new ModelObject("some box 1", ActorType.Decorator, transform, effectParameters, this.modelDictionary["box2"]);
-            //add to the objectManager so that it will be drawn and updated
-            this.objectManager.Add(boxObject);
-
-            //a clone variable that we can reuse
-            ModelObject clone = null;
-
-            //add a clone of the box model object to test the clone
-            clone = (ModelObject)boxObject.Clone();
-            clone.Transform.Translation = new Vector3(5, 5, 0);
-            //scale it to make it look different
-            clone.Transform.Scale = new Vector3(1, 4, 1);
-            //change its color
-            clone.EffectParameters.DiffuseColor = Color.Red;
-            this.objectManager.Add(clone);
-
-            //add more clones here...
-        }
-
-        private void InitializeBuildings()
-        {
-            Transform3D transform3D = new Transform3D(new Vector3(-100, 0, 0),
-                new Vector3(0, 90, 0), 0.4f * Vector3.One, Vector3.UnitX, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["house-low-texture"];
-
-            CollidableObject collidableObject = new TriangleMeshObject("house1", ActorType.CollidableArchitecture, transform3D, 
-                                effectParameters, this.modelDictionary["house"], new MaterialProperties(0.2f, 0.8f, 0.7f));
-            collidableObject.Enable(true, 1);
-            this.objectManager.Add(collidableObject);
-        }
-
-        private void InitializeWallsFences()
-        {
-            Transform3D transform3D = new Transform3D(new Vector3(-140, 0, -14),
-                new Vector3(0, -90, 0), 0.4f * Vector3.One, Vector3.UnitX, Vector3.UnitY);
-
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["wall"];
-
-            CollidableObject collidableObject = new TriangleMeshObject("wall1", ActorType.CollidableArchitecture, transform3D, 
-                            effectParameters, this.modelDictionary["wall"], new MaterialProperties(0.2f, 0.8f, 0.7f));
-            collidableObject.Enable(true, 1);
-            this.objectManager.Add(collidableObject);
-        }
-  
-        private void InitializeVideoDisplay()
-        {
-     
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitModelsEffectID].Clone() as BasicEffectParameters;
-            effectParameters.Texture = this.textureDictionary["checkerboard"];
-            //make the screen really shiny
-            effectParameters.SpecularPower = 256;
-
-            //put the display up on the Y-axis, obviously we can rotate by setting transform3D.Rotation
-            Transform3D transform3D = new Transform3D(new Vector3(0, 20, 0), new Vector3(16, 10, 0.1f));
-
-            /* 
-             * Does the display need to be collidable? if so use a CollidableObject and not a ModelObject.
-             * Notice we dont pass in a texture since the video controller will set this.
-             */
-            ModelObject videoModelObject = new ModelObject(AppData.VideoIDMainHall, ActorType.Decorator, 
-                transform3D, effectParameters, this.modelDictionary["box"]);
-
-            ////create the controller
-            VideoController videoController = new VideoController(AppData.VideoIDMainHall + " video " + AppData.ControllerIDSuffix, ControllerType.Video, this.eventDispatcher,
-                this.textureDictionary["checkerboard"], this.videoDictionary["sample"], 0.5f);
-
-            //make it rotate like a commercial video display
-            videoModelObject.AttachController(new RotationController(AppData.VideoIDMainHall + " rotation " + AppData.ControllerIDSuffix,
-                ControllerType.Rotation, new Vector3(0, 0.02f, 0)));
-            //attach
-            videoModelObject.AttachController(videoController);
-            //add to object manager
-            this.objectManager.Add(videoModelObject);
-        }
-
-
-
         #endregion
 
         #region Initialize Cameras
@@ -1010,166 +447,15 @@ namespace GDApp
             this.cameraManager.Add(camera);
         }
 
-        private void InitializeMultiScreenCameraDemo(Integer2 screenResolution)
-        {
-            Transform3D transform = null;
-            IController controller = null;
-            string id = "";
-            string viewportDictionaryKey = "";
-            int cameraHeight = 5;
-
-            //non-collidable camera 1
-            id = "non-collidable FPC 1";
-            viewportDictionaryKey = "column1 row0";
-            transform = new Transform3D(new Vector3(0, cameraHeight, 10), -Vector3.UnitZ, Vector3.UnitY);
-            controller = new FirstPersonCameraController(id + " controller", ControllerType.FirstPerson, AppData.CameraMoveKeys, AppData.CameraMoveSpeed, AppData.CameraStrafeSpeed, AppData.CameraRotationSpeed,
-                this.managerParameters);
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
-            //security camera 1
-            id = "non-collidable security 1";
-            viewportDictionaryKey = "column0 row0";
-            transform = new Transform3D(new Vector3(0, cameraHeight, 20), -Vector3.UnitZ, Vector3.UnitY);
-            controller = new SecurityCameraController(id + " controller", ControllerType.Security, 60, AppData.SecurityCameraRotationSpeedSlow, AppData.SecurityCameraRotationAxisYaw);
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
-            //security camera 2
-            id = "non-collidable security 2";
-            viewportDictionaryKey = "column0 row1";
-            transform = new Transform3D(new Vector3(0, cameraHeight, 20), -Vector3.UnitZ, Vector3.UnitY);
-            controller = new SecurityCameraController(id + " controller", ControllerType.Security, 45, AppData.SecurityCameraRotationSpeedMedium, new Vector3(1, 1, 0));
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
-            //security camera 3
-            id = "non-collidable security 3";
-            viewportDictionaryKey = "column0 row2";
-            transform = new Transform3D(new Vector3(0, cameraHeight, 20), -Vector3.UnitZ, Vector3.UnitY);
-            controller = new SecurityCameraController(id + " controller", ControllerType.Security, 30, AppData.SecurityCameraRotationSpeedFast, new Vector3(4, 1, 0));
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
-            //track camera 1
-            id = "non-collidable track 1";
-            viewportDictionaryKey = "column0 row3";
-            transform = new Transform3D(new Vector3(0, cameraHeight, 20), -Vector3.UnitZ, Vector3.UnitY);
-            controller = new CurveController(id + " controller", ControllerType.Track, this.curveDictionary["unique curve name 1"], PlayStatusType.Play);
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
-            //rail camera 1
-            id = "non-collidable rail 1";
-            viewportDictionaryKey = "column0 row4";
-            //since the camera will be set on a rail it doesnt matter what the initial transform is set to
-            transform = Transform3D.Zero;
-
-            //track animated player if it's available
-            if(this.animatedHeroPlayerObject != null)
-                controller = new RailController(id + " controller", ControllerType.Rail, this.animatedHeroPlayerObject, this.railDictionary["rail1 - parallel to x-axis"]);
-            else
-                controller = new RailController(id + " controller", ControllerType.Rail, this.drivableBoxObject, this.railDictionary["rail1 - parallel to x-axis"]);
-
-
-
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-        }
-
-        private void InitializeCollidableFirstPersonDemo(Integer2 screenResolution)
-        {
-            Transform3D transform = null;
-            string id = "";
-            string viewportDictionaryKey = "";
-            float drawDepth = 0;
-
-            id = "collidable first person camera";
-            viewportDictionaryKey = "full viewport";
-            //doesnt matter how high on Y-axis we start the camera since it's collidable and will fall until the capsule toches the ground plane - see AppData::CollidableCameraViewHeight
-            //just ensure that the Y-axis height is slightly more than AppData::CollidableCameraViewHeight otherwise the player will rise eerily upwards at the start of the game
-            //as the CDCR system pushes the capsule out of the collidable ground plane 
-            transform = new Transform3D(new Vector3(0, 1.1f * AppData.CollidableCameraViewHeight, 60), -Vector3.UnitZ, Vector3.UnitY);
-
-            Camera3D camera = new Camera3D(id, ActorType.Camera, transform,
-                    ProjectionParameters.StandardDeepSixteenNine, this.viewPortDictionary[viewportDictionaryKey], drawDepth, StatusType.Update);
-
-            //attach a CollidableFirstPersonController
-            camera.AttachController(new CollidableFirstPersonCameraController(
-                    camera + " controller",
-                    ControllerType.CollidableFirstPerson,
-                    AppData.CameraMoveKeys,
-                    AppData.CollidableCameraMoveSpeed, AppData.CollidableCameraStrafeSpeed, AppData.CameraRotationSpeed,
-                    this.managerParameters,
-                    camera, //parent
-                    AppData.CollidableCameraCapsuleRadius,
-                    AppData.CollidableCameraViewHeight,
-                    1, 1, //accel, decel
-                    AppData.CollidableCameraMass,
-                    AppData.CollidableCameraJumpHeight,
-                    Vector3.Zero)); //translation offset
-
-            this.cameraManager.Add(camera);
-        }
-
         //adds three camera from 3 different perspectives that we can cycle through
-        private void InitializeSingleScreenCycleableCameraDemo(Integer2 screenResolution)
+        private void InitializeCameraDemo(Integer2 screenResolution)
         {
+            Transform3D transform = new Transform3D(20*Vector3.UnitZ, -Vector3.UnitZ, Vector3.UnitY);
 
-            InitializeCollidableFirstPersonDemo(screenResolution);
+            IController controller = new FlightCameraController("fcc", ControllerType.FirstPerson, AppData.CameraMoveKeys,
+                AppData.CameraMoveSpeed, AppData.CameraStrafeSpeed, AppData.CameraRotationSpeed, this.managerParameters);
 
-            Transform3D transform = null;
-            IController controller = null;
-            string id = "";
-            string viewportDictionaryKey = "full viewport";
-
-            //track camera 1
-            id = "non-collidable track 1";
-            transform = new Transform3D(new Vector3(0, 0, 20), -Vector3.UnitZ, Vector3.UnitY);
-            controller = new CurveController(id + " controller", ControllerType.Track, this.curveDictionary["unique curve name 1"], PlayStatusType.Play);
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
-            //rail camera 1
-            id = "non-collidable rail 1";
-            //since the camera will be set on a rail it doesnt matter what the initial transform is set to
-            transform = Transform3D.Zero;
-
-            //track animated player if it's available
-            if (this.animatedHeroPlayerObject != null)
-                controller = new RailController(id + " controller", ControllerType.Rail, this.animatedHeroPlayerObject, this.railDictionary["rail1 - parallel to x-axis"]);
-            else
-                controller = new RailController(id + " controller", ControllerType.Rail, this.drivableBoxObject, this.railDictionary["rail1 - parallel to x-axis"]);
-
-
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
-        }
-
-        //adds a third person looking at collidable HeroPlayerObject
-        private void InitializeCollidableThirdPersonDemo(Integer2 screenResolution)
-        {
-            Transform3D transform = null;
-            IController controller = null;
-            string id = "";
-            string viewportDictionaryKey = "full viewport";
-
-            //track camera 1
-            id = "third person collidable";
-            //doesnt matter since it will reset based on target actor data
-            transform = Transform3D.Zero;
-
-            if (this.animatedHeroPlayerObject != null)
-            {
-                controller = new ThirdPersonController(id + "ctrllr", ControllerType.ThirdPerson, this.animatedHeroPlayerObject,
-                AppData.CameraThirdPersonDistance, AppData.CameraThirdPersonScrollSpeedDistanceMultiplier,
-                AppData.CameraThirdPersonElevationAngleInDegrees, AppData.CameraThirdPersonScrollSpeedElevatationMultiplier,
-                LerpSpeed.Fast, LerpSpeed.Medium, this.mouseManager);
-            }
-            else
-            {
-              controller = new ThirdPersonController(id + "ctrllr", ControllerType.ThirdPerson, this.heroPlayerObject,
-              AppData.CameraThirdPersonDistance, AppData.CameraThirdPersonScrollSpeedDistanceMultiplier,
-              AppData.CameraThirdPersonElevationAngleInDegrees, AppData.CameraThirdPersonScrollSpeedElevatationMultiplier,
-              LerpSpeed.Fast, LerpSpeed.Medium, this.mouseManager);
-            }
-
-
-            InitializeCamera(screenResolution, id, this.viewPortDictionary[viewportDictionaryKey], transform, controller, 0);
-
+            InitializeCamera(screenResolution, "flight camera 1", this.viewPortDictionary["full viewport"], transform, controller, 0);
         }
 
         #endregion
@@ -1373,7 +659,6 @@ namespace GDApp
         {
             InitializeUIMousePointer();
             InitializeUIProgress();
-            InitializeUIInventoryMenu();
         }
         private void InitializeUIMousePointer()
         {
@@ -1448,53 +733,32 @@ namespace GDApp
             this.uiManager.Add(textureObject);
             #endregion
         }
-        private void InitializeUIInventoryMenu()
-        {
-            //throw new NotImplementedException();
-        }
         #endregion
 
         #region Effects
         private void InitializeEffects()
         {
             BasicEffect basicEffect = null;
-            DualTextureEffect dualTextureEffect = null;
-            Effect billboardEffect = null;
-
-
-            #region Lit objects
-            //create a BasicEffect and set the lighting conditions for all models that use this effect in their EffectParameters field
+           
+            #region For unlit wireframe primitive objects
             basicEffect = new BasicEffect(graphics.GraphicsDevice);
-
-            basicEffect.TextureEnabled = true;
-            basicEffect.PreferPerPixelLighting = true;
-            basicEffect.EnableDefaultLighting();
-            this.effectDictionary.Add(AppData.LitModelsEffectID, new BasicEffectParameters(basicEffect));
-            #endregion
-
-            #region For Unlit objects
-            //used for model objects that dont interact with lighting i.e. sky
-            basicEffect = new BasicEffect(graphics.GraphicsDevice);
-            basicEffect.TextureEnabled = true;
-            basicEffect.LightingEnabled = false;
-            this.effectDictionary.Add(AppData.UnlitModelsEffectID, new BasicEffectParameters(basicEffect));
-            #endregion
-
-            #region For dual texture objects
-            dualTextureEffect = new DualTextureEffect(graphics.GraphicsDevice);
-            this.effectDictionary.Add(AppData.UnlitModelDualEffectID, new DualTextureEffectParameters(dualTextureEffect));
-            #endregion
-
-            #region For unlit billboard objects
-            billboardEffect = Content.Load<Effect>("Assets/Effects/billboard");
-            this.effectDictionary.Add(AppData.UnlitBillboardsEffectID, new BillboardEffectParameters(billboardEffect));
-            #endregion
-
-            #region For unlit primitive objects
-            basicEffect = new BasicEffect(graphics.GraphicsDevice);
-            basicEffect.TextureEnabled = true;
+            basicEffect.TextureEnabled = false;
             basicEffect.VertexColorEnabled = true;
-            this.effectDictionary.Add(AppData.UnLitPrimitivesEffectID, new BasicEffectParameters(basicEffect));
+            this.effectDictionary.Add(AppData.UnlitWireframePrimitivesEffectID, new BasicEffectParameters(basicEffect));
+            #endregion
+
+            #region For unlit colored primitive objects
+            basicEffect = new BasicEffect(graphics.GraphicsDevice);
+            basicEffect.TextureEnabled = false;
+            basicEffect.VertexColorEnabled = true;
+            this.effectDictionary.Add(AppData.UnLitColoredPrimitivesEffectID, new BasicEffectParameters(basicEffect));
+            #endregion
+
+            #region For unlit textured primitive objects
+            basicEffect = new BasicEffect(graphics.GraphicsDevice);
+            basicEffect.TextureEnabled = true;
+            basicEffect.VertexColorEnabled = false;
+            this.effectDictionary.Add(AppData.UnLitTexturedPrimitivesEffectID, new BasicEffectParameters(basicEffect));
             #endregion
 
         }
@@ -1518,11 +782,9 @@ namespace GDApp
 //#endif
 
         }
-
         protected override void UnloadContent()
         {
             //formally call garbage collection on all ContentDictionary objects to de-allocate resources from RAM
-            this.modelDictionary.Dispose();
             this.textureDictionary.Dispose();
             this.fontDictionary.Dispose();
             this.videoDictionary.Dispose();
@@ -1532,161 +794,14 @@ namespace GDApp
         protected override void Update(GameTime gameTime)
         {
             //exit using new gamepad manager
-            if(this.gamePadManager.IsPlayerConnected(PlayerIndex.One) && this.gamePadManager.IsButtonPressed(PlayerIndex.One, Buttons.Back))
+            if(this.gamePadManager != null && this.gamePadManager.IsPlayerConnected(PlayerIndex.One) && this.gamePadManager.IsButtonPressed(PlayerIndex.One, Buttons.Back))
                 this.Exit();
 
-
-#if DEMO
-            #region Demo
-            demoAnimationChangeTake();
-            demoVideoDisplay();
-            demoSoundManager();
-            demoCameraChange();
-            demoAlphaChange();
-            demoUIProgressUpdate();
-            demoHideDebugInfo();
-            demoGamePadManager();
-            #endregion
-#endif
             base.Update(gameTime);
         }
-
-#if DEMO
-        #region DEMO
-        private void demoAnimationChangeTake()
-        {
-            if (this.keyboardManager.IsFirstKeyPress(Keys.NumPad1))
-            {
-                //set the start animtion
-                this.animatedHeroPlayerObject.SetAnimation("Take 001", "Red_Idle");
-            }
-            else if (this.keyboardManager.IsFirstKeyPress(Keys.NumPad3))
-            {
-                //set the start animtion
-                this.animatedHeroPlayerObject.SetAnimation("Take 001", "Red_Tailwhip");
-            }
-            else if (this.keyboardManager.IsFirstKeyPress(Keys.NumPad4))
-            {
-                //set the start animtion
-                this.animatedHeroPlayerObject.SetAnimation("Take 001", "RedRun4");
-            }
-        }
-        private void demoVideoDisplay()
-        {
-            if (this.keyboardManager.IsFirstKeyPress(Keys.F3))
-            {
-                //pass the target ID for the controller to play the right video
-                object[] additonalParameters = { AppData.VideoIDMainHall + " video " + AppData.ControllerIDSuffix };
-                EventDispatcher.Publish(new EventData(EventActionType.OnPlay, EventCategoryType.Video, additonalParameters));
-            }
-            else if (this.keyboardManager.IsFirstKeyPress(Keys.F4))
-            {
-                //pass the target ID for the controller to play the right video
-                object[] additonalParameters = { AppData.VideoIDMainHall + " video " + AppData.ControllerIDSuffix };
-                EventDispatcher.Publish(new EventData(EventActionType.OnPause, EventCategoryType.Video, additonalParameters));
-            }
-
-            if (this.keyboardManager.IsFirstKeyPress(Keys.Up))
-            {
-                //pass the target ID for the controller to play the right video
-                object[] additonalParameters = { AppData.VideoIDMainHall + " video " + AppData.ControllerIDSuffix, 0.05f};
-                EventDispatcher.Publish(new EventData(EventActionType.OnVolumeUp, EventCategoryType.Video, additonalParameters));
-            }
-            else if (this.keyboardManager.IsFirstKeyPress(Keys.Down))
-            {
-                //pass the target ID for the controller to play the right video
-                object[] additonalParameters = { AppData.VideoIDMainHall + " video " + AppData.ControllerIDSuffix, 0.05f};
-                EventDispatcher.Publish(new EventData(EventActionType.OnMute, EventCategoryType.Video, additonalParameters));
-            }
-
-
-        }
-        private void demoGamePadManager()
-        {
-            if (this.gamePadManager.IsButtonPressed(PlayerIndex.One, Buttons.RightTrigger))
-            {
-                //do something....
-            }
-        }
-        private void demoSoundManager()
-        {
-            if (this.keyboardManager.IsFirstKeyPress(Keys.F2))
-            {
-                object[] additionalParameters = {"boing"};
-                EventDispatcher.Publish(new EventData(EventActionType.OnPlay, EventCategoryType.Sound2D, additionalParameters));
-
-                //stopping a cue
-                //object[] additionalParameters = { "boing", new Integer(0) };
-                //EventDispatcher.Publish(new EventData(EventActionType.OnStop, EventCategoryType.Sound2D, additionalParameters));
-
-            }
-        }
-        private void demoCameraChange()
-        {
-            //only single in single screen layout since cycling in multi-screen is meaningless
-            if (this.screenManager.ScreenType == ScreenUtility.ScreenType.SingleScreen && this.keyboardManager.IsFirstKeyPress(Keys.F1))
-            {
-                EventDispatcher.Publish(new EventData(EventActionType.OnCameraCycle, EventCategoryType.Camera));
-            }
-        }
-        private void demoHideDebugInfo()
-        {
-            //show/hide debug info
-            if (this.keyboardManager.IsFirstKeyPress(Keys.F7))
-            {
-                EventDispatcher.Publish(new EventData(EventActionType.OnToggleDebug, EventCategoryType.Debug));
-            }
-        }
-        private void demoUIProgressUpdate()
-        {
-            //testing event generation for UIProgressController
-            if (this.keyboardManager.IsFirstKeyPress(Keys.F9))
-            {
-                //increase the left progress controller by 2
-                object[] additionalEventParams = { AppData.PlayerOneProgressControllerID, -1};
-                EventDispatcher.Publish(new EventData(EventActionType.OnHealthDelta, EventCategoryType.Player, additionalEventParams));
-            }
-            else if (this.keyboardManager.IsFirstKeyPress(Keys.F10))
-            {
-                //increase the left progress controller by 2
-                object[] additionalEventParams = { AppData.PlayerOneProgressControllerID, 1 };
-                EventDispatcher.Publish(new EventData(EventActionType.OnHealthDelta, EventCategoryType.Player, additionalEventParams));
-            }
-
-            if (this.keyboardManager.IsFirstKeyPress(Keys.F11))
-            {
-                //increase the left progress controller by 2
-                object[] additionalEventParams = { AppData.PlayerTwoProgressControllerID, -1};
-                EventDispatcher.Publish(new EventData(EventActionType.OnHealthDelta, EventCategoryType.Player, additionalEventParams));
-            }
-            else if (this.keyboardManager.IsFirstKeyPress(Keys.F12))
-            {
-                //increase the left progress controller by 2
-                object[] additionalEventParams = { AppData.PlayerTwoProgressControllerID, 3 };
-                EventDispatcher.Publish(new EventData(EventActionType.OnHealthDelta, EventCategoryType.Player, additionalEventParams));
-            }
-        }
-        private void demoAlphaChange()
-        {
-            if (this.drivableBoxObject != null)
-            {
-                //testing event generation on opacity change - see DrawnActor3D::Alpha setter
-                if (this.keyboardManager.IsFirstKeyPress(Keys.F5))
-                {
-                    this.drivableBoxObject.Alpha -= 0.05f;
-                }
-                else if (this.keyboardManager.IsFirstKeyPress(Keys.F6))
-                {
-                    this.drivableBoxObject.Alpha += 0.05f;
-                }
-            }
-        }
-        #endregion
-#endif
-
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(GoogleGreenColor);
 
             // TODO: Add your drawing code here
 

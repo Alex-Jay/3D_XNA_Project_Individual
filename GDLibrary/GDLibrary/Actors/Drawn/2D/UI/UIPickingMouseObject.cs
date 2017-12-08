@@ -52,17 +52,11 @@ namespace GDApp
         private void EventDispatcher_ObjectPickChanged(EventData eventData)
         {
             if(eventData.EventType == EventActionType.OnObjectPicked)
-            {
-                //see PickingManager::UpdateEventListeners() for publish point
-                this.Text = CollisionUtility.GetMouseStringFromCollidableObject(eventData.AdditionalParameters[0] as CollidableObject, (float)eventData.AdditionalParameters[1]);
-
+            {    
                 SetAppearance();
             }
             else if (eventData.EventType == EventActionType.OnNonePicked)
             {
-                //see PickingManager::UpdateEventListeners() for publish point
-                this.Text = eventData.AdditionalParameters[0] as string;
-
                 ResetAppearance();
             }
         }

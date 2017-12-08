@@ -6,6 +6,8 @@ Function: 		This child class for drawing primitives where the vertex data is buf
                 - This is a more efficient approach than either using the VertexData or DynamicBufferedVertexData classes if
                   you wish to draw a large number of primitives on screen.
 
+                See http://rbwhitaker.wikidot.com/index-and-vertex-buffers
+
 Author: 		NMCG
 Version:		1.0
 Date Updated:	27/11/17
@@ -22,7 +24,6 @@ namespace GDLibrary
     {
         #region Variables
         private VertexBuffer vertexBuffer;
-        private GraphicsDevice graphicsDevice;
         #endregion
 
         #region Properties
@@ -38,48 +39,38 @@ namespace GDLibrary
 
             }
         }
-        public GraphicsDevice GraphicsDevice
-        {
-            get
-            {
-                return this.graphicsDevice;
-            }
-        }
         #endregion
 
-        //allows developer to pass in vertices AND buffer - more efficient since buffer is defined ONCE outside of the object instead of a new VertexBuffer for EACH instance of the class
-        public BufferedVertexData(GraphicsDevice graphicsDevice, T[] vertices, VertexBuffer vertexBuffer, PrimitiveType primitiveType, int primitiveCount)
-            : base(vertices, primitiveType, primitiveCount)
-        {
-            this.graphicsDevice = graphicsDevice;
-            this.VertexBuffer = vertexBuffer;
-            
-            //set data on the reserved space
-            this.vertexBuffer.SetData<T>(this.Vertices);
-        }
-    
-        //buffer is created INSIDE the class so each class has a buffer - not efficient
+        //allows developer to pass in buffer only - more efficient since buffer is defined ONCE outside of the object instead of a new VertexBuffer for EACH instance of the class
         public BufferedVertexData(GraphicsDevice graphicsDevice, T[] vertices, PrimitiveType primitiveType, int primitiveCount)
             : base(vertices, primitiveType, primitiveCount)
         {
-            this.graphicsDevice = graphicsDevice;
-            this.VertexBuffer = new VertexBuffer(graphicsDevice, typeof(T), vertices.Length, BufferUsage.None);
-            
-            //set data on the reserved space
-            this.vertexBuffer.SetData<T>(this.Vertices);
+            if (vertices != null)
+            {
+                //BufferUsage set to WriteOnly will instruct the GFX card to choose the most efficient VRAM location for retrieving this data (i.e. closest to the GPU(s))
+                vertexBuffer = new VertexBuffer(graphicsDevice, typeof(T), vertices.Length, BufferUsage.WriteOnly);
+                //serialize the data to the reserved buffer on VRAM
+                vertexBuffer.SetData<T>(vertices);
+
+                //reference to the buffer
+                this.VertexBuffer = vertexBuffer;
+            }
         }
 
-
-        public void SetData(T[] vertices)
+        //internal - only called by Clone()
+        protected BufferedVertexData(VertexBuffer vertexBuffer, PrimitiveType primitiveType, int primitiveCount)
+            : base(null, primitiveType, primitiveCount)
         {
-            this.Vertices = vertices;
-            //set data on the reserved space
-            this.vertexBuffer.SetData<T>(this.Vertices);
+            //reference to the buffer
+            this.VertexBuffer = vertexBuffer;
+
+            //set underlying vertices that were temporarily passed as null in call to base constructor above
+            this.VertexBuffer.GetData<T>(this.Vertices);
         }
 
         public override void Draw(GameTime gameTime, Effect effect)
         {
-            //this is what we want GFX to draw
+            //use the vertices in this buffer in VRAM to draw the primitive
             effect.GraphicsDevice.SetVertexBuffer(this.vertexBuffer);
 
             //draw!
@@ -88,8 +79,7 @@ namespace GDLibrary
 
         public new object Clone()
         {
-            return new BufferedVertexData<T>(this.graphicsDevice,  //shallow - reference
-                this.Vertices, //shallow - reference
+            return new BufferedVertexData<T>(this.VertexBuffer, //shallow - reference
                 this.PrimitiveType, //struct - deep
                 this.PrimitiveCount); //deep - primitive
         }

@@ -37,6 +37,9 @@ namespace GDLibrary
         CollidableProjectile,
         CollidableDoor,
         CollidableAmmo,
-        Primitive
+        PrimitiveHelper,
+        PrimitiveQuad,
+        PrimitiveCube,
+        NotYetAssigned
     }
 }

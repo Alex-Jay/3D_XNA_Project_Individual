@@ -46,27 +46,16 @@ namespace GDLibrary
         }
 
         //a predicate function to be used by PickingManager for ray picking of collidable objects - defines what types are valid
-        public static bool IsCollidableObjectOfInterest(CollidableObject collidableObject)
+        public static bool IsActorOfInterest(Actor3D actor)
         {
-            //shouldnt be able to pick immovable things
-            if (collidableObject.Collision.Owner.Immovable)
-                return false;
-
-            return collidableObject.ActorType == ActorType.CollidableProp || collidableObject.ActorType == ActorType.CollidablePickup;
+            return actor.ActorType == ActorType.CollidableProp || actor.ActorType == ActorType.CollidablePickup;
         }
 
-        public static bool IsCollidableObjectPlayer(CollidableObject collidableObject)
-        {
-            //shouldnt be able to pick immovable things
-            if (collidableObject.Collision.Owner.Immovable)
-                return false;
+      
 
-            return collidableObject.ActorType == ActorType.Player;
-        }
-
-        public static string GetMouseStringFromCollidableObject(CollidableObject collidableObject, float distanceToObject)
+        public static string GetMouseStringFromCollidableObject(Actor3D actor, float distanceToObject)
         {
-            return collidableObject.ID + " [" + distanceToObject + "]";
+            return actor.ID + " [" + distanceToObject + "]";
         }
     }
 }

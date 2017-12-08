@@ -195,15 +195,15 @@ namespace GDLibrary
 
         public override void Update(GameTime gameTime, IActor actor)
         {
-            ModelObject parentModelObject = actor as ModelObject;
+            DrawnActor3D parentActor = actor as DrawnActor3D;
 
             //set the texture if the parent is valid
-            if (parentModelObject != null)
+            if (parentActor != null)
             {
                 if (videoState == VideoState.Playing)
-                    parentModelObject.EffectParameters.Texture = videoPlayer.GetTexture();
+                    parentActor.EffectParameters.Texture = videoPlayer.GetTexture();
                 else if (videoState == VideoState.Stopped)
-                    parentModelObject.EffectParameters.Texture = startTexture;
+                    parentActor.EffectParameters.Texture = startTexture;
             }
         }
 
