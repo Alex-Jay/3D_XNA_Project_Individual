@@ -293,7 +293,7 @@ namespace GDLibrary
         //draw a NON-TEXTURED primitive i.e. vertices (and possibly indices) defined by the user
         private void DrawObject(GameTime gameTime, PrimitiveObject primitiveObject, Camera3D activeCamera)
         {
-            //if (activeCamera.BoundingFrustum.Intersects(primitiveObject.BoundingSphere))
+            if (activeCamera.BoundingFrustum.Intersects(primitiveObject.BoundingSphere))
             {
                 primitiveObject.EffectParameters.SetParameters(activeCamera);
                 primitiveObject.EffectParameters.SetWorld(primitiveObject.GetWorldMatrix());
