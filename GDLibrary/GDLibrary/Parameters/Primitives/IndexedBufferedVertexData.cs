@@ -42,6 +42,15 @@ namespace GDLibrary
         }
         #endregion
 
+
+        //allows developer to specify the indices and vertices to be used directly - gives us complete control
+        public IndexedBufferedVertexData(GraphicsDevice graphicsDevice, T[] vertices, short[] indices, PrimitiveType primitiveType, int primitiveCount)
+            : base(graphicsDevice, vertices, primitiveType, primitiveCount)
+        {
+            this.indexBuffer = new IndexBuffer(graphicsDevice, typeof(short), indices.Length, BufferUsage.WriteOnly);
+            this.indexBuffer.SetData<short>(indices);
+        }
+
         //allows developer to pass in vertices AND buffer - more efficient since buffer is defined ONCE outside of the object instead of a new VertexBuffer for EACH instance of the class
         public IndexedBufferedVertexData(GraphicsDevice graphicsDevice, T[] vertices, PrimitiveType primitiveType, int primitiveCount)
             : base(graphicsDevice, null, primitiveType, primitiveCount)

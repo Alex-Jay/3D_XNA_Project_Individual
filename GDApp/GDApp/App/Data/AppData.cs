@@ -135,10 +135,17 @@ namespace GDLibrary
         #endregion
 
         #region Effect IDs
-        public static readonly string UnlitWireframePrimitivesEffectID = "unlit wireframe"; //used for helpers like XYZ axis
+        //used by primitives based on VertexPositionColor vertex type
         public static readonly string UnLitColoredPrimitivesEffectID = "unlit colored";
+
+        //used by primitives based on VertexPositionColorTexture vertex type
         public static readonly string UnLitTexturedPrimitivesEffectID = "unlit textured";
+
+        //used by primitives based on VertexBillboard vertex type
         public static readonly string UnlitBillboardsEffectID = "unlit textured billboards";
+
+        //used by primitives based on VertexPositionNormalTexture vertex type
+        public static readonly string LitTexturedPrimitivesEffectID = "lit textured ";
         #endregion
 
     }

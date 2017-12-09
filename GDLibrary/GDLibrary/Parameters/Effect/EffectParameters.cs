@@ -171,7 +171,7 @@ namespace GDLibrary
 
         public virtual EffectParameters GetDeepCopy()
         {
-            return new EffectParameters(this.effect, //shallow - a reference
+            return new EffectParameters(this.effect.Clone() as Effect, //shallow - a reference
                 this.texture, //shallow - a reference
                 this.diffuseColor,//deep
                 this.alpha);//deep

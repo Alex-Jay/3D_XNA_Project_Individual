@@ -15,6 +15,39 @@ using System.Collections.Generic;
 
 namespace GDLibrary
 {
+    #region Ignore
+    //billboards are drawn with a custom shader and need a special vertex type declaration
+    public struct VertexBillboard : IVertexType
+    {
+        #region Variables
+        public Vector3 position;
+        public Vector4 texCoordAndOffset;
+        #endregion
+
+        public VertexBillboard(Vector3 position, Vector4 texCoordAndOffset)
+        {
+            this.position = position;
+            this.texCoordAndOffset = texCoordAndOffset;
+        }
+
+        public readonly static VertexDeclaration VertexDeclaration = new VertexDeclaration
+        (
+                new VertexElement(0, VertexElementFormat.Vector3, VertexElementUsage.Position, 0),
+                new VertexElement(12, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 0)
+        );
+
+        VertexDeclaration IVertexType.VertexDeclaration { get { return VertexDeclaration; } }
+    }
+
+    //used to create a simple 3D sphere from 3 circles on 3 planes
+    public enum OrientationType : sbyte
+    {
+        XYAxis,
+        XZAxis,
+        YZAxis
+    }
+    #endregion
+
     public enum ShapeType : sbyte
     {
         //add an enum for each of the UNIQUE shapes that you have in your game...
@@ -35,22 +68,45 @@ namespace GDLibrary
         TexturedQuad,
         TexturedCube,
 
+        //creates primitives that we can apply lighting to using the directional lights of BasicEffect
         NormalQuad,
-        NormalCube
-    }
+        NormalCube,
 
-    //used to create a simple 3D sphere from 3 circles on 3 planes
-    public enum OrientationType : sbyte
-    {
-        XYAxis,
-        XZAxis,
-        YZAxis
+        //creates normal, spherical, or cylindrical billboards
+        Billboard
     }
 
     public class PrimitiveUtility
     {
+        #region Ignore
+        /*************************************************************** Billboard (unlit) ***************************************************************/
+
+        //returns the vertices for a billboard which has a custom vertex declaration
+        public static VertexBillboard[] GetBillboard(out PrimitiveType primitiveType, out int primitiveCount)
+        {
+            primitiveType = PrimitiveType.TriangleStrip;
+            primitiveCount = 2;
+
+            VertexBillboard[] vertices = new VertexBillboard[4];
+            float halfSideLength = 0.5f;
+
+            Vector2 uvTopLeft = new Vector2(0, 0);
+            Vector2 uvTopRight = new Vector2(1, 0);
+            Vector2 uvBottomLeft = new Vector2(0, 1);
+            Vector2 uvBottomRight = new Vector2(1, 1);
+
+            //quad coplanar with the XY-plane (i.e. forward facing normal along UnitZ)
+            vertices[0] = new VertexBillboard(Vector3.Zero, new Vector4(uvTopLeft, -halfSideLength, halfSideLength));
+            vertices[1] = new VertexBillboard(Vector3.Zero, new Vector4(uvTopRight, halfSideLength, halfSideLength));
+            vertices[2] = new VertexBillboard(Vector3.Zero, new Vector4(uvBottomLeft, -halfSideLength, -halfSideLength));
+            vertices[3] = new VertexBillboard(Vector3.Zero, new Vector4(uvBottomRight, halfSideLength, -halfSideLength));
+
+            return vertices;
+        }
+        #endregion
 
         /*************************************************************** Wireframe ***************************************************************/
+        
         //returns the vertices for a 1 unit length line segment centred around the origin
         public static VertexPositionColor[] GetWireframLine(out PrimitiveType primitiveType, out int primitiveCount)
         {
@@ -173,6 +229,7 @@ namespace GDLibrary
         }
 
         /*************************************************************** Colored ***************************************************************/
+        
         //returns the vertices for an equilateral triangle, with colors defined by the array, and centred around the origin
         public static VertexPositionColor[] GetColoredTriangle(Color[] vertexColorArray, out PrimitiveType primitiveType, out int primitiveCount)
         {
@@ -295,7 +352,6 @@ namespace GDLibrary
 
             return vertices;
         }
-
 
         /*************************************************************** Textured (unlit) ***************************************************************/
 
@@ -465,14 +521,14 @@ namespace GDLibrary
         //try to create a quad that can be lit with the directional lights of the BasicEffect...
 
         //adding normals - step 1 - add the vertices for the object shape
-        public static VertexPositionNormalTexture[] GetNormalTexturedCube(int sidelength, out PrimitiveType primitiveType, out int primitiveCount)
+        public static VertexPositionNormalTexture[] GetNormalTexturedCube(out PrimitiveType primitiveType, out int primitiveCount)
         {
             primitiveType = PrimitiveType.TriangleList;
             primitiveCount = 12;
 
             VertexPositionNormalTexture[] vertices = new VertexPositionNormalTexture[36];
 
-            float halfSideLength = sidelength / 2.0f;
+            float halfSideLength = 0.5f;
 
             Vector3 topLeftFront = new Vector3(-halfSideLength, halfSideLength, halfSideLength);
             Vector3 topLeftBack = new Vector3(-halfSideLength, halfSideLength, -halfSideLength);
@@ -547,56 +603,6 @@ namespace GDLibrary
 
             return vertices;
         }
-
-
-        /*************************************************************** Billboard (unlit) ***************************************************************/
-
-        public struct VertexBillboard : IVertexType
-        {
-            #region Variables
-            public Vector3 position;
-            public Vector4 texCoordAndOffset;
-            #endregion
-
-            public VertexBillboard(Vector3 position, Vector4 texCoordAndOffset)
-            {
-                this.position = position;
-                this.texCoordAndOffset = texCoordAndOffset;
-            }
-
-            public readonly static VertexDeclaration VertexDeclaration = new VertexDeclaration
-            (
-                    new VertexElement(0, VertexElementFormat.Vector3, VertexElementUsage.Position, 0),
-                    new VertexElement(12, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 0)
-            );
-
-            VertexDeclaration IVertexType.VertexDeclaration { get { return VertexDeclaration; } }
-        }
-
-        //returns the vertices for a billboard which has a custom vertex declaration
-        public static VertexBillboard[] GetVertexBillboard(int sidelength, out PrimitiveType primitiveType, out int primitiveCount)
-        {
-            primitiveType = PrimitiveType.TriangleStrip;
-            primitiveCount = 2;
-
-            VertexBillboard[] vertices = new VertexBillboard[4];
-            float halfSideLength = sidelength / 2.0f;
-
-            Vector2 uvTopLeft = new Vector2(0, 0);
-            Vector2 uvTopRight = new Vector2(1, 0);
-            Vector2 uvBottomLeft = new Vector2(0, 1);
-            Vector2 uvBottomRight = new Vector2(1, 1);
-
-            //quad coplanar with the XY-plane (i.e. forward facing normal along UnitZ)
-            vertices[0] = new VertexBillboard(Vector3.Zero, new Vector4(uvTopLeft, -halfSideLength, halfSideLength));
-            vertices[1] = new VertexBillboard(Vector3.Zero, new Vector4(uvTopRight, halfSideLength, halfSideLength));
-            vertices[2] = new VertexBillboard(Vector3.Zero, new Vector4(uvBottomLeft, -halfSideLength, -halfSideLength));
-            vertices[3] = new VertexBillboard(Vector3.Zero, new Vector4(uvBottomRight, halfSideLength, -halfSideLength));
-
-            return vertices;
-        }
-
-
 
     }
 }

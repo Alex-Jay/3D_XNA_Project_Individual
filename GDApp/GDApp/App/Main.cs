@@ -9,12 +9,16 @@ using Microsoft.Xna.Framework.Media;
 using System;
 
 /*
-No statustype on controllers
-mouse object text interleaving with progress controller
-Z-fighting on ground plane in 3rd person mode
-Elevation angle on 3rd person view
-PiP
-menu transparency
+ * TranslationLerpController
+ * Is frustum culling working on primitive objects?
+ * 
+ * 
+ * No statustype on controllers
+ * mouse object text interleaving with progress controller
+ * Z-fighting on ground plane in 3rd person mode
+ * Elevation angle on 3rd person view
+ * PiP
+ * menu transparency
 */
 
 namespace GDApp
@@ -84,7 +88,6 @@ namespace GDApp
             //moved instanciation here to allow menu and ui managers to be moved to InitializeManagers()
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            int gameLevel = 1;
             bool isMouseVisible = true;
             Integer2 screenResolution = ScreenUtility.HD720;
             ScreenUtility.ScreenType screenType = ScreenUtility.ScreenType.SingleScreen;
@@ -121,8 +124,12 @@ namespace GDApp
             InitializeDebugTextInfo();
 #endif
 
-            //load demo happens before cameras are loaded because we may add a third person camera that needs a reference to a loaded Actor
-            LoadDemoOne();
+            int demoNumber = 2;
+            if(demoNumber == 1)
+                LoadDemoOne();
+            else if (demoNumber == 2)
+                LoadDemoTwo();
+
 
             //Publish Start Event(s)
             StartGame();
@@ -347,14 +354,66 @@ namespace GDApp
 #endif
         #endregion
 
-        #region Load Game Content
+        #region Load Demo Three
+        //load the contents for the demo specified
+        private void LoadDemoThree()
+        {
+           
+        }
+        #endregion
+
+
+        #region Load Demo Two
+        //load the contents for the demo specified
+        private void LoadDemoTwo()
+        {
+            //add helpers to help us orient ourself
+            InitializeHelperPrimitives();
+
+            //add lit primitives
+            InitializeLitPrimitives();
+        }
+
+        private void InitializeLitPrimitives()
+        {
+            PrimitiveObject clonedObject = null;
+
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
+
+            //get the archetype from the factory
+            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+
+            //set texture once so all clones have the same
+            archetypeObject.EffectParameters.Texture = this.textureDictionary["crate1"];
+
+            //make some copies
+            for (int i = 1; i <= 100; i++)
+            {
+                clonedObject = archetypeObject.Clone() as PrimitiveObject;
+
+                //re-position, scale
+                clonedObject.Transform.Translation = new Vector3(-2 * i, 0, 0);
+
+                if (i % 2 == 0)
+                {
+                    clonedObject.Transform.Scale = new Vector3(1, 2, 1);
+                }
+
+                //add to manager
+                this.objectManager.Add(clonedObject);
+            }
+        }
+        #endregion
+
+        #region Load Demo One
         //load the contents for the demo specified
         private void LoadDemoOne()
         {
             //add helpers to help us orient ourself
             InitializeHelperPrimitives();
 
-            //add unlit quads
+            ////add unlit quads
             InitializeQuadPrimitives();
 
             //add unlit cubes
@@ -364,7 +423,7 @@ namespace GDApp
 
         private void InitializeHelperPrimitives()
         {
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnlitWireframePrimitivesEffectID] as BasicEffectParameters;
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnLitColoredPrimitivesEffectID] as BasicEffectParameters;
             //since its wireframe we dont set color, texture, alpha etc.
 
             //get a reference to the origin helper
@@ -395,7 +454,7 @@ namespace GDApp
                 
                 //change id, re-position, scale and change alpha for fun
                 clonedObject.ID = "Spinning thing " + i;
-                clonedObject.Transform.Translation += new Vector3(0, 5 * i, 0);
+                clonedObject.Transform.Translation = new Vector3(0, 5 * i, 0);
                 clonedObject.Transform.Scale = new Vector3(4 * i, 2, 1);
                 clonedObject.EffectParameters.Alpha = i * 0.25f;
                 
@@ -421,25 +480,36 @@ namespace GDApp
             archetypeObject.EffectParameters.Texture = this.textureDictionary["crate1"];
 
             //make some copies
-            for(int i = 1; i < 600; i++)
+            for(int i = 1; i <= 10; i++)
             {
                 clonedObject = archetypeObject.Clone() as PrimitiveObject;
 
                 //re-position, scale
-                clonedObject.Transform.Translation += new Vector3(1 * i, 0, 0);
-               // clonedObject.Transform.Scale *= i;
+                clonedObject.Transform.Translation = new Vector3(10 * i, 0, 0);
+
+            //    if (i % 2 == 0)
+            //    {
+            //        clonedObject.Transform.Scale = new Vector3(1, 1, 1);
+            //        clonedObject.EffectParameters.Alpha = 0.5f;
+            //    }
+            //    else
+            //    {
+            //        //we could also attach controllers here instead to give each a different translation
+            ////        clonedObject.AttachController(new TranslationSineLerpController("trans controller", ControllerType.LerpTranslation, Vector3.UnitY, new TrigonometricParameters(1, 0.1f, 0)));
+
+            //    }
+
 
                 //add to manager
                 this.objectManager.Add(clonedObject);
             }
-
         }
         #endregion
 
         #region Initialize Cameras
         private void InitializeCamera(Integer2 screenResolution, string id, Viewport viewPort, Transform3D transform, IController controller, float drawDepth)
         {
-            Camera3D camera = new Camera3D(id, ActorType.Camera, transform, ProjectionParameters.StandardMediumFiveThree, viewPort, drawDepth, StatusType.Update);
+            Camera3D camera = new Camera3D(id, ActorType.Camera, transform, ProjectionParameters.StandardShallowSixteenNine, viewPort, drawDepth, StatusType.Update);
 
             if (controller != null)
                 camera.AttachController(controller);
@@ -740,14 +810,7 @@ namespace GDApp
         {
             BasicEffect basicEffect = null;
            
-            #region For unlit wireframe primitive objects
-            basicEffect = new BasicEffect(graphics.GraphicsDevice);
-            basicEffect.TextureEnabled = false;
-            basicEffect.VertexColorEnabled = true;
-            this.effectDictionary.Add(AppData.UnlitWireframePrimitivesEffectID, new BasicEffectParameters(basicEffect));
-            #endregion
-
-            #region For unlit colored primitive objects
+            #region For unlit colored primitive objects incl. simple lines and wireframe primitives
             basicEffect = new BasicEffect(graphics.GraphicsDevice);
             basicEffect.TextureEnabled = false;
             basicEffect.VertexColorEnabled = true;
@@ -759,6 +822,15 @@ namespace GDApp
             basicEffect.TextureEnabled = true;
             basicEffect.VertexColorEnabled = false;
             this.effectDictionary.Add(AppData.UnLitTexturedPrimitivesEffectID, new BasicEffectParameters(basicEffect));
+            #endregion
+
+            #region For lit (i.e. normals defined) textured primitive objects
+            basicEffect = new BasicEffect(graphics.GraphicsDevice);  
+            basicEffect.TextureEnabled = true;
+            basicEffect.VertexColorEnabled = false;
+            basicEffect.EnableDefaultLighting();
+            basicEffect.PreferPerPixelLighting = true;
+            this.effectDictionary.Add(AppData.LitTexturedPrimitivesEffectID, new BasicEffectParameters(basicEffect));
             #endregion
 
         }

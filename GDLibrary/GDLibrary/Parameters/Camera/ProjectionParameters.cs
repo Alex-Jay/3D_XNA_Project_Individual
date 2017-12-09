@@ -111,7 +111,7 @@ namespace GDLibrary
         {
             get
             {
-                return new ProjectionParameters(MathHelper.PiOver2, 16.0f / 9, 0.1f, 500);
+                return new ProjectionParameters(MathHelper.PiOver4, 16.0f / 9, 0.1f, 500);
             }
         }
         #endregion

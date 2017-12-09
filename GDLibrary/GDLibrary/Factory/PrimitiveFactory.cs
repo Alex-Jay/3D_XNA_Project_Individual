@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using System.Collections.Generic;
 
 namespace GDLibrary
 {
@@ -29,13 +31,35 @@ namespace GDLibrary
         protected PrimitiveObject GetPrimitiveObjectFromVertexData(IVertexData vertexData, ShapeType shapeType, EffectParameters effectParameters)
         {
             //instanicate the object
-            PrimitiveObject primitiveObject = new PrimitiveObject("Archetype - " + shapeType.ToString(), ActorType.NotYetAssigned, Transform3D.Zero, effectParameters.Clone() as EffectParameters, StatusType.Update | StatusType.Drawn, vertexData);
+            PrimitiveObject primitiveObject = new PrimitiveObject("Archetype - " + shapeType.ToString(),
+                ActorType.NotYetAssigned,
+                Transform3D.Zero,
+                effectParameters.Clone() as EffectParameters, 
+                StatusType.Update | StatusType.Drawn, 
+                vertexData);
 
             //add to the dictionary for re-use in any subsequent call to this method
             primitiveDictionary.Add(shapeType, primitiveObject);
 
             //return a reference to our new object
             return primitiveObject;
+        }
+
+
+        protected PrimitiveObject GetTexturedBillboard(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
+        {
+            PrimitiveType primitiveType;
+            int primitiveCount;
+            IVertexData vertexData;
+
+            //get the vertices
+            VertexBillboard[] vertices = PrimitiveUtility.GetBillboard(out primitiveType, out primitiveCount);
+
+            //create the buffered data
+            vertexData = new BufferedVertexData<VertexBillboard>(graphics, vertices, primitiveType, primitiveCount);
+
+            //instanciate the object and return a reference
+            return GetPrimitiveObjectFromVertexData(vertexData, shapeType, effectParameters);
         }
     }
 }

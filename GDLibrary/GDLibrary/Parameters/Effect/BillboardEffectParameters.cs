@@ -55,7 +55,7 @@ namespace GDLibrary
 
         public override EffectParameters GetDeepCopy()
         {
-            return new BillboardEffectParameters(this.Effect, //shallow - a reference
+            return new BillboardEffectParameters(this.Effect.Clone(), //shallow - a reference
                 this.Texture, //shallow - a reference
                 this.DiffuseColor,//deep
                 this.Alpha);//deep

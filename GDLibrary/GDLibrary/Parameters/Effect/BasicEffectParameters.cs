@@ -157,7 +157,7 @@ namespace GDLibrary
 
         public override EffectParameters GetDeepCopy()
         {
-            return new BasicEffectParameters(this.Effect, //shallow - a reference
+            return new BasicEffectParameters(this.Effect.Clone() as BasicEffect, //shallow - a reference
                 this.Texture, //shallow - a reference
                 this.AmbientColor, //deep
                 this.DiffuseColor,//deep
