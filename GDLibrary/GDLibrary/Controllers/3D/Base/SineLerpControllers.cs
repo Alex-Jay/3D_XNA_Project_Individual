@@ -36,5 +36,20 @@ namespace GDLibrary
         {
             this.trigonometricParameters = trigonometricParameters;
         }
+
+        public override object GetDeepCopy()
+        {
+            IController clone = new SineLerpController("clone - " + this.ID, //deep
+                this.ControllerType, //deep
+                this.trigonometricParameters.Clone() as TrigonometricParameters); //deep
+
+            clone.SetControllerPlayStatus(this.PlayStatusType);
+
+            return clone;
+        }
+        public new object Clone()
+        {
+            return GetDeepCopy();
+        }
     }
 }

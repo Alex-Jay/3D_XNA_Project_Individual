@@ -14,16 +14,33 @@ namespace GDApp
 {
     public class MyGameStateManager : GameStateManager
     {
-        public MyGameStateManager(Game game, EventDispatcher eventDispatcher, StatusType statusType) 
+        private MenuManager menuMgr;
+
+        public MyGameStateManager(Game game, EventDispatcher eventDispatcher, StatusType statusType, MenuManager menuManager) 
             : base(game, eventDispatcher, statusType)
         {
-
+            menuMgr = menuManager;
+            RegisterForEventHandling(eventDispatcher);
         }
+
+        #region Event Handling
+        protected override void RegisterForEventHandling(EventDispatcher eventDispatcher)
+        {
+            eventDispatcher.PlayerChanged += EventDispatcher_PlayerChanged;
+        }
+
+        protected virtual void EventDispatcher_PlayerChanged(EventData eventData)
+        {
+            if (eventData.EventType == EventActionType.OnLose)
+            {
+                EventDispatcher.Publish(new EventData(EventActionType.OnPause, EventCategoryType.MainMenu));
+            }
+        }
+        #endregion
 
         protected override void ApplyUpdate(GameTime gameTime)
         {
             //to do...
-
             base.ApplyUpdate(gameTime);
         }
     }

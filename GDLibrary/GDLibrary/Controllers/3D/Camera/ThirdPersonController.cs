@@ -197,9 +197,9 @@ namespace GDLibrary
         }
 
         //be careful when cloning this controller as we will need to reset the target actor - assuming the clone attaches to a different target
-        public override object Clone()
+        public override object GetDeepCopy()
         {
-            return new ThirdPersonController("clone - " + this.ID, //deep
+            IController clone = new ThirdPersonController("clone - " + this.ID, //deep
                 this.ControllerType, //deep
                 this.TargetActor as Actor, //shallow - a ref
                 this.distance, //deep
@@ -209,6 +209,14 @@ namespace GDLibrary
                 this.translationLerpSpeed, //deep
                 this.lookLerpSpeed, //deep
                 this.mouseManager); //shallow - a ref
+
+            clone.SetControllerPlayStatus(this.PlayStatusType);
+
+            return clone;
+        }
+        public new object Clone()
+        {
+            return GetDeepCopy();
         }
     }
 }

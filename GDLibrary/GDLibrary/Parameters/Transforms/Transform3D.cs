@@ -152,8 +152,9 @@ namespace GDLibrary
             }
         }
 
-        public Vector3 TranslateIncrement { get; internal set; }
-        public int RotateIncrement { get; internal set; }
+        //these values are used to store the amount we would LIKE to translate or rotate if our simple CDCR (for ICA project) allows
+        public Vector3 TranslateIncrement { get; set; }
+        public float RotateIncrement { get; set; }
 
         #endregion
 

@@ -123,8 +123,8 @@ namespace GDLibrary
             //set the graphics card to repeat the end pixel value for any UV value outside 0-1
             //See http://what-when-how.com/xna-game-studio-4-0-programmingdeveloping-for-windows-phone-7-and-xbox-360/samplerstates-xna-game-studio-4-0-programming/
             SamplerState samplerState = new SamplerState();
-            samplerState.AddressU = TextureAddressMode.Mirror;
-            samplerState.AddressV = TextureAddressMode.Mirror;
+            samplerState.AddressU = TextureAddressMode.Wrap;
+            samplerState.AddressV = TextureAddressMode.Wrap;
             game.GraphicsDevice.SamplerStates[0] = samplerState;
 
             //opaque objects
@@ -161,6 +161,12 @@ namespace GDLibrary
                 //disable to see what happens when we disable depth buffering - look at the boxes
                 game.GraphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
             }
+        }
+
+        public void Add(List<Actor3D> list)
+        {
+            foreach (Actor3D actor in list)
+                Add(actor);
         }
 
         public void Add(Actor3D actor)
@@ -223,9 +229,12 @@ namespace GDLibrary
             foreach (Actor3D actor in this.opaqueDrawList)
             {
                 if ((actor.GetStatusType() & StatusType.Update) == StatusType.Update) //if update flag is set
+                {
                     actor.Update(gameTime);
+                    //sort so that nearest is top of the list so that ray picking will return the object closest to the camera
+                    MathUtility.SetDistanceFromCamera(actor as Actor3D, this.cameraManager.ActiveCamera);
+                }
             }
-
             //update all your transparent objects
             foreach (Actor3D actor in this.transparentDrawList)
             {
@@ -237,14 +246,17 @@ namespace GDLibrary
                 }
             }
 
-            //sort so that the transparent objects closest to the camera are the LAST transparent objects drawn
-            SortTransparentByDistance();
+            //sort so that the objects closest to the camera are the LAST transparent objects drawn and the opaque objects are the reverse (to support nearest first ray picking)
+            SortAllByDistance();
         }
 
-        private void SortTransparentByDistance()
+        private void SortAllByDistance()
         {
             //sorting in descending order
             this.transparentDrawList.Sort((a, b) => (b.Transform.DistanceToCamera.CompareTo(a.Transform.DistanceToCamera)));
+
+            //sorting in ascending order so that ray picking will return the object closest to the camera
+            this.opaqueDrawList.Sort((a, b) => (a.Transform.DistanceToCamera.CompareTo(b.Transform.DistanceToCamera)));
         }
 
         public void Draw(GameTime gameTime, Camera3D activeCamera)

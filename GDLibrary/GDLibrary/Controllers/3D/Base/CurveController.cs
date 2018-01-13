@@ -17,7 +17,6 @@ namespace GDLibrary
 
         #region Fields
         private Transform3DCurve transform3DCurve;
-        private PlayStatusType playStatusType;
         private float elapsedTimeInMs;
         private int curveEvaluationPrecision;
         #endregion
@@ -34,17 +33,7 @@ namespace GDLibrary
                 this.transform3DCurve = value;
             }
         }
-        public PlayStatusType PlayStatusType
-        {
-            get
-            {
-                return this.playStatusType;
-            }
-            set
-            {
-                this.playStatusType = value;
-            }
-        }
+
         public int CurveEvaluationPrecision
         {
             get
@@ -71,7 +60,6 @@ namespace GDLibrary
             : base(id, controllerType)
         {
             this.transform3DCurve = transform3DCurve;
-            this.playStatusType = playStatusType;
             this.elapsedTimeInMs = 0;
             this.curveEvaluationPrecision = curveEvaluationPrecision;
         }
@@ -80,9 +68,9 @@ namespace GDLibrary
         {
             Actor3D parentActor = actor as Actor3D;
 
-            if (this.playStatusType == PlayStatusType.Play)
+            if (this.PlayStatusType == PlayStatusType.Play)
                 UpdateTrack(gameTime, parentActor);
-            else if ((this.playStatusType == PlayStatusType.Reset) || (this.playStatusType == PlayStatusType.Stop))
+            else if ((this.PlayStatusType == PlayStatusType.Reset) || (this.PlayStatusType == PlayStatusType.Stop))
                 this.elapsedTimeInMs = 0;
         }
 

@@ -76,6 +76,18 @@ namespace GDLibrary
         }
 
         //to do as an exercise...FindAll(Predicate<Actor2D> predicate)
+        public UITextObject Find(Predicate<Actor2D> predicate)
+        {
+            UITextObject returnTextObject = null;
+
+            returnTextObject = (UITextObject)this.drawList.Find(predicate);
+            if ((returnTextObject != null)) //the actor(s) were found in the opaque list
+            {
+                return returnTextObject;
+            }
+
+            return null;
+        }
 
         //batch remove on all objects that were requested to be removed
         protected virtual void ApplyRemove()

@@ -148,13 +148,19 @@ namespace GDLibrary
 
             return hash;
         }
-        public object Clone()
+
+        public virtual object GetDeepCopy()
         {
             //update for new parameter
             Actor clone = new Actor(this.id, this.ActorType, this.StatusType);
             //remember using "as" is more flexible than a traditional typecast. Why?
             clone.GroupParameters = this.groupParameters.Clone() as GroupParameters;
             return clone;
+        }
+
+        public object Clone()
+        {
+            return GetDeepCopy();
         }
         public virtual bool Remove()
         {
@@ -172,7 +178,11 @@ namespace GDLibrary
             if (this.controllerList != null &&  ((this.StatusType & StatusType.Update) == StatusType.Update))
             {
                 foreach (IController controller in this.controllerList)
-                    controller.Update(gameTime, this); //you control me, update!
+                {
+                    //if controller isnt turned off
+                    if(controller.GetControllerPlayStatus() != PlayStatusType.Off)
+                        controller.Update(gameTime, this);
+                }
             }
         }
 
@@ -204,7 +214,7 @@ namespace GDLibrary
         }
         public List<IController> FindControllers(Predicate<IController> predicate)
         {
-            return this.controllerList.FindAll(predicate);
+            return (this.controllerList != null) ? this.controllerList.FindAll(predicate) : null;
         }
         //allows us to set the PlayStatus for all controllers simultaneously (e.g. play all, reset all, stop all)
         public virtual void SetAllControllers(PlayStatusType playStatusType)
@@ -214,6 +224,7 @@ namespace GDLibrary
                 foreach (IController controller in this.controllerList)
                     controller.SetControllerPlayStatus(playStatusType);
             }
+
         }
         //allows us to set the PlayStatus for all controllers with the same GROUP parameters simultaneously (e.g. "play" all controllers with a group ID of 1)
         public virtual void SetAllControllers(PlayStatusType playStatusType, Predicate<IController> predicate)

@@ -180,6 +180,51 @@ namespace GDLibrary
         }
 
         #region Ray Picking
+        //get a ray positioned at the mouse's location on the screen - used for picking 
+        public Ray GetMouseRay(Camera3D camera)
+        {
+            //get the positions of the mouse in screen space
+            Vector3 near = new Vector3(this.newState.X, this.Position.Y, 0);
+
+            //convert from screen space to world space
+            near = camera.Viewport.Unproject(near, camera.ProjectionParameters.Projection, camera.View, Matrix.Identity);
+
+            return GetMouseRayFromNearPosition(camera, near);
+        }
+
+        //get a ray from a user-defined near position in world space and the mouse pointer
+        public Ray GetMouseRayFromNearPosition(Camera3D camera, Vector3 near)
+        {
+            //get the positions of the mouse in screen space
+            Vector3 far = new Vector3(this.newState.X, this.Position.Y, 1);
+
+            //convert from screen space to world space
+            far = camera.Viewport.Unproject(far, camera.ProjectionParameters.Projection, camera.View, Matrix.Identity);
+
+            //generate a ray to use for intersection tests
+            return new Ray(near, Vector3.Normalize(far - near));
+        }
+
+        //get a ray positioned at the scnree position - used for picking when we have a centred reticule
+        public Vector3 GetMouseRayDirection(Camera3D camera, Vector2 screenPosition)
+        {
+            //get the positions of the mouse in screen space
+            Vector3 near = new Vector3(screenPosition.X, screenPosition.Y, 0);
+            Vector3 far = new Vector3(this.Position, 1);
+
+            //convert from screen space to world space
+            near = camera.Viewport.Unproject(near, camera.ProjectionParameters.Projection, camera.View, Matrix.Identity);
+            far = camera.Viewport.Unproject(far, camera.ProjectionParameters.Projection, camera.View, Matrix.Identity);
+
+
+            //generate a ray to use for intersection tests
+            return Vector3.Normalize(far - near);
+        }
+
+        public Vector3 GetMouseRayDirection(Camera3D camera)
+        {
+            return GetMouseRayDirection(camera, new Vector2(this.newState.X, this.newState.Y));
+        }
         #endregion
     }
 }

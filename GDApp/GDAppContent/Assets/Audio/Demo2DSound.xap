@@ -16,8 +16,8 @@ Global Settings
     Header File = Demo2DSound.h;
     Exclude Category Names = 0;
     Exclude Variable Names = 0;
-    Last Modified Low = 0;
-    Last Modified High = 0;
+    Last Modified Low = 3687389240;
+    Last Modified High = 30641332;
 
     Category
     {
@@ -58,8 +58,8 @@ Global Settings
 
         Instance Limit
         {
-            Max Instances = 255;
-            Behavior = 0;
+            Max Instances = 1;
+            Behavior = 1;
 
             Crossfade
             {
@@ -225,8 +225,12 @@ Wave Bank
     Windows Bank Path Edited = 0;
     Seek Tables = 1;
     Compression Preset Name = <none>;
-    Bank Last Revised Low = 1439872788;
-    Bank Last Revised High = 30430317;
+    Xbox Bank Last Modified Low = 0;
+    Xbox Bank Last Modified High = 0;
+    PC Bank Last Modified Low = 3687429242;
+    PC Bank Last Modified High = 30641332;
+    Bank Last Revised Low = 2493932789;
+    Bank Last Revised High = 30641337;
 
     Wave
     {
@@ -246,8 +250,54 @@ Wave Bank
             Loop Region Offset = 0;
             Loop Region Length = 0;
             File Type = 1;
-            Last Modified Low = 3805660051;
-            Last Modified High = 30430316;
+            Last Modified Low = 1614207488;
+            Last Modified High = 30631397;
+        }
+    }
+
+    Wave
+    {
+        Name = click;
+        File = click.wav;
+        Build Settings Last Modified Low = 1630122705;
+        Build Settings Last Modified High = 30641130;
+
+        Cache
+        {
+            Format Tag = 0;
+            Channels = 2;
+            Sampling Rate = 44100;
+            Bits Per Sample = 1;
+            Play Region Offset = 1024;
+            Play Region Length = 88200;
+            Loop Region Offset = 0;
+            Loop Region Length = 0;
+            File Type = 1;
+            Last Modified Low = 790464679;
+            Last Modified High = 30641130;
+        }
+    }
+
+    Wave
+    {
+        Name = main_theme;
+        File = ..\..\..\GDApp\bin\x86\Debug\Content\Assets\Audio\main_theme.wav;
+        Build Settings Last Modified Low = 2578586596;
+        Build Settings Last Modified High = 30641301;
+
+        Cache
+        {
+            Format Tag = 0;
+            Channels = 2;
+            Sampling Rate = 48000;
+            Bits Per Sample = 1;
+            Play Region Offset = 78;
+            Play Region Length = 47044508;
+            Loop Region Offset = 0;
+            Loop Region Length = 0;
+            File Type = 1;
+            Last Modified Low = 2376125016;
+            Last Modified High = 30641301;
         }
     }
 }
@@ -259,6 +309,10 @@ Sound Bank
     Windows File = Win\SoundBank1.xsb;
     Xbox Bank Path Edited = 0;
     Windows Bank Path Edited = 0;
+    Bank Last Modified Low = 3694229631;
+    Bank Last Modified High = 30641332;
+    Header Last Modified High = 0;
+    Header Last Modified Low = 0;
 
     Sound
     {
@@ -307,6 +361,100 @@ Sound Bank
         }
     }
 
+    Sound
+    {
+        Name = click;
+        Volume = -1200;
+        Pitch = 0;
+        Priority = 0;
+
+        Category Entry
+        {
+            Name = Default;
+        }
+
+        Track
+        {
+            Volume = 0;
+            Use Filter = 0;
+
+            Play Wave Event
+            {
+                Break Loop = 0;
+                Use Speaker Position = 0;
+                Use Center Speaker = 1;
+                New Speaker Position On Loop = 1;
+                Speaker Position Angle = 0.000000;
+                Speaker Position Arc = 0.000000;
+
+                Event Header
+                {
+                    Timestamp = 0;
+                    Relative = 0;
+                    Random Recurrence = 0;
+                    Random Offset = 0;
+                }
+
+                Wave Entry
+                {
+                    Bank Name = WaveBank1;
+                    Bank Index = 0;
+                    Entry Name = click;
+                    Entry Index = 1;
+                    Weight = 255;
+                    Weight Min = 0;
+                }
+            }
+        }
+    }
+
+    Sound
+    {
+        Name = main_theme;
+        Volume = -1200;
+        Pitch = 0;
+        Priority = 0;
+
+        Category Entry
+        {
+            Name = Default;
+        }
+
+        Track
+        {
+            Volume = 0;
+            Use Filter = 0;
+
+            Play Wave Event
+            {
+                Break Loop = 0;
+                Use Speaker Position = 0;
+                Use Center Speaker = 1;
+                New Speaker Position On Loop = 1;
+                Speaker Position Angle = 0.000000;
+                Speaker Position Arc = 0.000000;
+
+                Event Header
+                {
+                    Timestamp = 0;
+                    Relative = 0;
+                    Random Recurrence = 0;
+                    Random Offset = 0;
+                }
+
+                Wave Entry
+                {
+                    Bank Name = WaveBank1;
+                    Bank Index = 0;
+                    Entry Name = main_theme;
+                    Entry Index = 2;
+                    Weight = 190;
+                    Weight Min = 0;
+                }
+            }
+        }
+    }
+
     Cue
     {
         Name = boing;
@@ -322,6 +470,46 @@ Sound Bank
         {
             Name = boing;
             Index = 0;
+            Weight Min = 0;
+            Weight Max = 255;
+        }
+    }
+
+    Cue
+    {
+        Name = click;
+
+        Variation
+        {
+            Variation Type = 3;
+            Variation Table Type = 1;
+            New Variation on Loop = 0;
+        }
+
+        Sound Entry
+        {
+            Name = click;
+            Index = 1;
+            Weight Min = 0;
+            Weight Max = 255;
+        }
+    }
+
+    Cue
+    {
+        Name = main_theme;
+
+        Variation
+        {
+            Variation Type = 3;
+            Variation Table Type = 1;
+            New Variation on Loop = 0;
+        }
+
+        Sound Entry
+        {
+            Name = main_theme;
+            Index = 2;
             Weight Min = 0;
             Weight Max = 255;
         }

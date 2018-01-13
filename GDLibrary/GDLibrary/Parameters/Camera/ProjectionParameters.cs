@@ -127,7 +127,7 @@ namespace GDLibrary
         //used by both
         private Matrix projection;
         private ProjectionParameters originalProjectionParameters;
-        private bool isDirty;
+        private bool isDirty = true;
         #endregion
 
         #region Properties

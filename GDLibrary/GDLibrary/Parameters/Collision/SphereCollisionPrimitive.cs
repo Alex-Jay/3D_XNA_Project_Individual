@@ -53,6 +53,8 @@ namespace GDLibrary
         {
             this.transform3D = transform3D;
             this.radius = radius;
+            //set the initial position for the sphere
+            this.boundingSphere = new BoundingSphere(transform3D.Translation, this.radius);
         }
 
         public bool Intersects(ICollisionPrimitive collisionPrimitive)

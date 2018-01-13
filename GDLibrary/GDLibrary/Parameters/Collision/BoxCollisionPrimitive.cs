@@ -43,6 +43,10 @@ namespace GDLibrary
             this.transform3D = transform3D;
             this.boundingBox = new BoundingBox(transform3D.Scale/2 * min, transform3D.Scale/2 * max);
             this.originalBoundingBox = this.boundingBox;
+
+            //set the initial position of the box
+            this.boundingBox.Max = originalBoundingBox.Max + transform3D.Translation;
+            this.boundingBox.Min = originalBoundingBox.Min + transform3D.Translation;
         }
 
         public bool Intersects(BoundingBox box)

@@ -45,31 +45,93 @@ namespace GDApp
             switch (shapeType)
             {
                 case ShapeType.WireframeLine:
-                    primitiveObject = (this.PrimitiveDictionary.ContainsKey(shapeType)) ? this.PrimitiveDictionary[shapeType] : GetLine(graphics, shapeType, effectParameters);
-                    break;
+                        {
+                            if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                                primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                            else
+                            primitiveObject = GetWireframeLine(graphics, shapeType, effectParameters);
+                        }
+                        break;
 
                 case ShapeType.WireframeOrigin:
-                    primitiveObject = (this.PrimitiveDictionary.ContainsKey(shapeType)) ? this.PrimitiveDictionary[shapeType] : GetOrigin(graphics, shapeType, effectParameters);
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetWireframeOrigin(graphics, shapeType, effectParameters);
+                    }
+                    break;
+
+                case ShapeType.WireframeSphere:
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetWireframeSphere(graphics, shapeType, effectParameters);
+                    }
+                    break;
+
+                case ShapeType.WireframeSpiral:
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetWireframeSpiral(graphics, shapeType, effectParameters);
+                    }
                     break;
 
                 case ShapeType.ColoredQuad:
-                    primitiveObject = (this.PrimitiveDictionary.ContainsKey(shapeType)) ? this.PrimitiveDictionary[shapeType] : GetColoredQuad(graphics, shapeType, effectParameters);
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetColoredQuad(graphics, shapeType, effectParameters);
+                    }
                     break;
 
                 case ShapeType.TexturedQuad:
-                    primitiveObject = (this.PrimitiveDictionary.ContainsKey(shapeType)) ? this.PrimitiveDictionary[shapeType] : GetTexturedQuad(graphics, shapeType, effectParameters);
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetTexturedQuad(graphics, shapeType, effectParameters);
+                    }
                     break;
 
                 case ShapeType.TexturedCube:
-                    primitiveObject = (this.PrimitiveDictionary.ContainsKey(shapeType)) ? this.PrimitiveDictionary[shapeType] : GetTexturedCube(graphics, shapeType, effectParameters);
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetTexturedCube(graphics, shapeType, effectParameters);
+                    }
+                    break;
+
+                case ShapeType.TexturedPyramidSquare:
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetTexturedPyramidSquare(graphics, shapeType, effectParameters);
+                    }
                     break;
 
                 case ShapeType.Billboard:
-                    primitiveObject = (this.PrimitiveDictionary.ContainsKey(shapeType)) ? this.PrimitiveDictionary[shapeType] : GetTexturedBillboard(graphics, shapeType, effectParameters);
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetTexturedBillboard(graphics, shapeType, effectParameters);
+                    }
                     break;
 
                 case ShapeType.NormalCube:
-                    primitiveObject = (this.PrimitiveDictionary.ContainsKey(shapeType)) ? this.PrimitiveDictionary[shapeType] : GetNormalTexturedCube(graphics, shapeType, effectParameters);
+                    {
+                        if (this.PrimitiveDictionary.ContainsKey(shapeType))
+                            primitiveObject = this.PrimitiveDictionary[shapeType].Clone() as PrimitiveObject;
+                        else
+                            primitiveObject = GetNormalTexturedCube(graphics, shapeType, effectParameters);
+                    }
                     break;
 
                 //add a case here for each of your custom shapes (e.g. lit diamonds)
@@ -81,11 +143,12 @@ namespace GDApp
 
             return primitiveObject;
         }
+
      
-        private PrimitiveObject GetLine(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
+        private PrimitiveObject GetWireframeLine(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
         {
             //get the vertices
-            VertexPositionColor[] vertices = PrimitiveUtility.GetWireframLine(out primitiveType, out primitiveCount);
+            VertexPositionColor[] vertices = PrimitiveUtility.GetWireframeLine(out primitiveType, out primitiveCount);
 
             //create the buffered data
             vertexData = new BufferedVertexData<VertexPositionColor>(graphics, vertices, primitiveType, primitiveCount);
@@ -94,7 +157,7 @@ namespace GDApp
             return GetPrimitiveObjectFromVertexData(vertexData, shapeType, effectParameters);
         }
 
-        private PrimitiveObject GetOrigin(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
+        private PrimitiveObject GetWireframeOrigin(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
         {
             //get the vertices
             VertexPositionColor[] vertices = PrimitiveUtility.GetWireframeOrigin(out primitiveType, out primitiveCount);
@@ -105,6 +168,31 @@ namespace GDApp
             //instanciate the object and return a reference
             return GetPrimitiveObjectFromVertexData(vertexData, shapeType, effectParameters);
         }
+
+        private PrimitiveObject GetWireframeSphere(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
+        {
+            //get the vertices
+            VertexPositionColor[] vertices = PrimitiveUtility.GetWireframeSphere(15, out primitiveType, out primitiveCount);
+
+            //create the buffered data
+            vertexData = new BufferedVertexData<VertexPositionColor>(graphics, vertices, primitiveType, primitiveCount);
+
+            //instanciate the object and return a reference
+            return GetPrimitiveObjectFromVertexData(vertexData, shapeType, effectParameters);
+        }
+
+        private PrimitiveObject GetWireframeSpiral(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
+        {
+            //get the vertices
+            VertexPositionColor[] vertices = PrimitiveUtility.GetWireframeSpiral(15, 1, out primitiveType, out primitiveCount);
+
+            //create the buffered data
+            vertexData = new BufferedVertexData<VertexPositionColor>(graphics, vertices, primitiveType, primitiveCount);
+
+            //instanciate the object and return a reference
+            return GetPrimitiveObjectFromVertexData(vertexData, shapeType, effectParameters);
+        }
+
 
         private PrimitiveObject GetColoredQuad(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
         {
@@ -151,6 +239,20 @@ namespace GDApp
             //instanciate the object and return a reference
             return GetPrimitiveObjectFromVertexData(vertexData, shapeType, effectParameters);
         }
+
+
+        private PrimitiveObject GetTexturedPyramidSquare(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
+        {
+            //get the vertices
+            VertexPositionColorTexture[] vertices = PrimitiveUtility.GetTexturedPyramidSquare(out primitiveType, out primitiveCount);
+
+            vertexData = new BufferedVertexData<VertexPositionColorTexture>(graphics, vertices, primitiveType, primitiveCount);
+
+            //instanciate the object and return a reference
+            return GetPrimitiveObjectFromVertexData(vertexData, shapeType, effectParameters);
+        }
+
+        
 
         private PrimitiveObject GetNormalTexturedCube(GraphicsDevice graphics, ShapeType shapeType, EffectParameters effectParameters)
         {

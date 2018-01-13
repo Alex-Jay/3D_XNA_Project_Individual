@@ -30,11 +30,27 @@ namespace GDLibrary
             parentActor.Transform.RotateAroundYBy(this.rotationRate);
             parentActor.Transform.TranslateBy(this.translationRate * gameTime.ElapsedGameTime.Milliseconds);
             parentActor.Transform.ScaleBy(this.scaleRate);
-            parentActor.Alpha += this.alphaDecayRate;
+            parentActor.EffectParameters.Alpha += this.alphaDecayRate;
 
             //if alpha less than some threshold value then remove
-            if (parentActor.Alpha < this.alphaDecayThreshold)
+            if (parentActor.EffectParameters.Alpha < this.alphaDecayThreshold)
                 EventDispatcher.Publish(new EventData(parentActor, EventActionType.OnRemoveActor, EventCategoryType.SystemRemove));
+        }
+
+        public override object GetDeepCopy()
+        {
+            IController clone = new PickupController("clone - " + this.ID,
+                this.ControllerType,
+                this.rotationRate, this.translationRate, this.scaleRate,
+                    this.alphaDecayRate, this.alphaDecayThreshold);
+
+            clone.SetControllerPlayStatus(this.PlayStatusType);
+
+            return clone;
+        }
+        public new object Clone()
+        {
+            return GetDeepCopy();
         }
     }
 }

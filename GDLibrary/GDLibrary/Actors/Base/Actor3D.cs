@@ -29,6 +29,13 @@ namespace GDLibrary
                 this.transform = value;
             }
         }
+        public BoundingSphere BoundingSphere
+        {
+            get
+            {
+                return new BoundingSphere(this.Transform.Translation, this.Transform.Scale.Length() / 2.0f);
+            }
+        }
         #endregion
 
         public Actor3D(string id, ActorType actorType,
@@ -70,18 +77,26 @@ namespace GDLibrary
             return hash;
         }
 
-        public new object Clone()
+        public override object GetDeepCopy()
         {
             IActor actor = new Actor3D("clone - " + ID, //deep
-                this.ActorType, //deep
-                (Transform3D)this.transform.Clone(), //deep
-                this.StatusType); //shallow
+               this.ActorType, //deep
+               (Transform3D)this.transform.Clone(), //deep
+               this.StatusType); //shallow
 
-            //clone each of the (behavioural) controllers
-            foreach(IController controller in this.ControllerList)
-                actor.AttachController((IController)controller.Clone());
+            if (this.ControllerList != null)
+            {
+                //clone each of the (behavioural) controllers
+                foreach (IController controller in this.ControllerList)
+                    actor.AttachController((IController)controller.Clone());
+            }
 
             return actor;
+        }
+
+        public new object Clone()
+        {
+            return GetDeepCopy();
         }
 
         public override bool Remove()

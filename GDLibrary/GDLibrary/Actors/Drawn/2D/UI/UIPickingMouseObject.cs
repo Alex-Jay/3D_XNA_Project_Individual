@@ -54,10 +54,17 @@ namespace GDApp
             if(eventData.EventType == EventActionType.OnObjectPicked)
             {    
                 SetAppearance();
+
+                Actor3D collidee = eventData.AdditionalParameters[0] as Actor3D;
+                float distanceToObject = (float) eventData.AdditionalParameters[1];
+                this.Text = collidee.ID + "[" + distanceToObject + "]";
+
             }
             else if (eventData.EventType == EventActionType.OnNonePicked)
             {
                 ResetAppearance();
+
+                this.Text = eventData.AdditionalParameters[0] as string;
             }
         }
         #endregion

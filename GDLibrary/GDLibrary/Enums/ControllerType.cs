@@ -40,6 +40,7 @@ namespace GDLibrary
 
         //UI related
         UIProgress, //see UIProgressController demo
-        Video
+        Video,
+        PickupDisappear
     }
 }

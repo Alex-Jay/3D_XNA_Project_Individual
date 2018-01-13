@@ -84,12 +84,20 @@ namespace GDLibrary
             return hash;
         }
 
-        public override object Clone()
+        public override object GetDeepCopy()
         {
-            return new TranslationSineLerpController("clone - " + this.ID, //deep
+            IController clone = new TranslationSineLerpController("clone - " + this.ID, //deep
                 this.ControllerType, //deep
                 this.lerpDirection,  //deep
                 (TrigonometricParameters)this.TrigonometricParameters.Clone()); //deep
+
+            clone.SetControllerPlayStatus(this.PlayStatusType);
+
+            return clone;
         }
+        public new object Clone()
+        {
+            return GetDeepCopy();
+        }     
     }
 }

@@ -69,7 +69,7 @@ namespace GDLibrary
             //range - max amplitude -> + max amplitude
             float lerpFactor = (float)(trigonometricParameters.MaxAmplitude
                 * Math.Sin(trigonometricParameters.AngularFrequency
-                * MathHelper.ToRadians(totalElapsedTime) + trigonometricParameters.PhaseAngle));
+                * MathHelper.ToRadians(totalElapsedTime) + MathHelper.ToRadians(trigonometricParameters.PhaseAngle)));
             //range 0 -> 2* max amplitude
             lerpFactor += trigonometricParameters.MaxAmplitude;
             //range 0 -> max amplitude

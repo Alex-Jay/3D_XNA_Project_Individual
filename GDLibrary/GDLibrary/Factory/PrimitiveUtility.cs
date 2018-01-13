@@ -67,6 +67,7 @@ namespace GDLibrary
 
         TexturedQuad,
         TexturedCube,
+        TexturedPyramidSquare, //square based pyramid
 
         //creates primitives that we can apply lighting to using the directional lights of BasicEffect
         NormalQuad,
@@ -108,7 +109,7 @@ namespace GDLibrary
         /*************************************************************** Wireframe ***************************************************************/
         
         //returns the vertices for a 1 unit length line segment centred around the origin
-        public static VertexPositionColor[] GetWireframLine(out PrimitiveType primitiveType, out int primitiveCount)
+        public static VertexPositionColor[] GetWireframeLine(out PrimitiveType primitiveType, out int primitiveCount)
         {
             primitiveType = PrimitiveType.LineList;
             primitiveCount = 1;
@@ -172,9 +173,9 @@ namespace GDLibrary
         }
 
         //returns the vertices for a spiral with a user-defined segment angle, vertical increment and orientation centred around the origin
-        public static VertexPositionColor[] GetWireframeSpiral(int segmentAngleInDegrees, float verticalIncrement, out int primitiveCount)
+        public static VertexPositionColor[] GetWireframeSpiral(int segmentAngleInDegrees, float verticalIncrement, out PrimitiveType primitiveType, out int primitiveCount)
         {
-            VertexPositionColor[] vertices = GetWireframeCircle(segmentAngleInDegrees, out primitiveCount, OrientationType.XZAxis);
+            VertexPositionColor[] vertices = GetWireframeCircle(segmentAngleInDegrees, out primitiveType, out primitiveCount, OrientationType.XZAxis);
 
             for (int i = 0; i < vertices.Length; i++)
             {
@@ -185,9 +186,12 @@ namespace GDLibrary
         }
 
         //returns the vertices for a circle with a user-defined segment angle and orientation centred around the origin
-        public static VertexPositionColor[] GetWireframeCircle(int segmentAngleInDegrees, out int primitiveCount, OrientationType orientationType)
+        public static VertexPositionColor[] GetWireframeCircle(int segmentAngleInDegrees, out PrimitiveType primitiveType, out int primitiveCount,
+            OrientationType orientationType)
         {
+            primitiveType = PrimitiveType.LineStrip;
             primitiveCount = 360 / segmentAngleInDegrees;
+
             VertexPositionColor[] vertices = new VertexPositionColor[primitiveCount + 1];
 
             Vector3 position = Vector3.Zero;
@@ -217,13 +221,13 @@ namespace GDLibrary
         }
 
         //returns the vertices for a simple sphere (i.e. 3 circles) with a user-defined sweep angle centred around the origin
-        public static VertexPositionColor[] GetWireframeSphere(int segmentAngleInDegrees, out int primitiveCount)
+        public static VertexPositionColor[] GetWireframeSphere(int segmentAngleInDegrees, out PrimitiveType primitiveType, out int primitiveCount)
         {
             List<VertexPositionColor> vertList = new List<VertexPositionColor>();
 
-            vertList.AddRange(GetWireframeCircle(segmentAngleInDegrees, out primitiveCount, OrientationType.XYAxis));
-            vertList.AddRange(GetWireframeCircle(segmentAngleInDegrees, out primitiveCount, OrientationType.YZAxis));
-            vertList.AddRange(GetWireframeCircle(segmentAngleInDegrees, out primitiveCount, OrientationType.XZAxis));
+            vertList.AddRange(GetWireframeCircle(segmentAngleInDegrees, out primitiveType, out primitiveCount, OrientationType.XYAxis));
+            vertList.AddRange(GetWireframeCircle(segmentAngleInDegrees, out primitiveType, out primitiveCount, OrientationType.YZAxis));
+            vertList.AddRange(GetWireframeCircle(segmentAngleInDegrees, out primitiveType, out primitiveCount, OrientationType.XZAxis));
             primitiveCount = vertList.Count - 1;
             return vertList.ToArray();
         }
