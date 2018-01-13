@@ -41,8 +41,8 @@ namespace GDLibrary
             //add to the dictionary for re-use in any subsequent call to this method
             primitiveDictionary.Add(shapeType, primitiveObject);
 
-            //return a reference to our new object
-            return primitiveObject;
+            //return a reference to a CLONE of our original object - remember we always clone the dictionary object, rather than modify the archetype in the dictionary
+            return primitiveObject.Clone() as PrimitiveObject;
         }
 
 

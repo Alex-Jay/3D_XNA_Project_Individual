@@ -73,12 +73,20 @@ namespace GDLibrary
             return hash;
         }
 
-        public override object Clone()
+        public override object GetDeepCopy()
         {
-            return new UIScaleSineLerpController("clone - " + this.ID, //deep
+            IController clone = new UIScaleSineLerpController("clone - " + this.ID, //deep
                 this.ControllerType, //deep
-                (TrigonometricParameters) this.trigonometricParameters.Clone() //deep
-                );
+                (TrigonometricParameters)this.trigonometricParameters.Clone()); //deep
+
+            clone.SetControllerPlayStatus(this.PlayStatusType);
+
+            return clone;
+        }
+
+        public new object Clone()
+        {
+            return GetDeepCopy();
         }
     }
 }

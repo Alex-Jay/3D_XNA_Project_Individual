@@ -46,5 +46,28 @@ namespace GDLibrary
             if (collisionPrimitive != null)
                 collisionPrimitive.Update(gameTime, this.Transform);
         }
+
+        public override object GetDeepCopy()
+        {
+            SimpleZoneObject actor = new SimpleZoneObject("clone - " + ID, //deep
+                 this.ActorType, //deep
+                 (Transform3D)this.Transform.Clone(), //deep
+                 this.StatusType, //deep
+                 (ICollisionPrimitive)this.CollisionPrimitive.Clone()); //deep 
+
+            if (this.ControllerList != null)
+            {
+                //clone each of the (behavioural) controllers
+                foreach (IController controller in this.ControllerList)
+                    actor.AttachController((IController)controller.Clone());
+            }
+
+            return actor;
+        }
+
+        public new object Clone()
+        {
+            return GetDeepCopy();
+        }
     }
 }

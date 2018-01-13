@@ -90,13 +90,13 @@ namespace GDLibrary
             return hash;
         }
 
-        public new object Clone()
+        public override object GetDeepCopy()
         {
             IActor actor = new DrawnActor3D("clone - " + ID, //deep
-                this.ActorType, //deep
-                (Transform3D)this.Transform.Clone(), //deep - calls the clone for Transform3D explicitly
-                this.EffectParameters.GetDeepCopy(), //hybrid - shallow (texture and effect) and deep (all other fields) 
-                this.StatusType); //deep - a simple numeric type
+                         this.ActorType, //deep
+                         (Transform3D)this.Transform.Clone(), //deep - calls the clone for Transform3D explicitly
+                         this.EffectParameters.GetDeepCopy(), //hybrid - shallow (texture and effect) and deep (all other fields) 
+                         this.StatusType); //deep - a simple numeric type
 
             if (this.ControllerList != null)
             {
@@ -106,6 +106,11 @@ namespace GDLibrary
             }
 
             return actor;
+        }
+
+        public new object Clone()
+        {
+            return GetDeepCopy();
         }
 
         public override bool Remove()

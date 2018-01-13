@@ -139,6 +139,7 @@
     <Compile Include="Managers\Menu\MenuManager.cs" />
     <Compile Include="Managers\Object\ObjectManager.cs" />
     <Compile Include="Enums\PickingBehaviourType.cs" />
+    <Compile Include="Managers\Picking\SimplePickingManager.cs" />
     <Compile Include="Managers\Screen\ScreenManager.cs" />
     <Compile Include="Managers\Sound\Cue3D.cs" />
     <Compile Include="Managers\Sound\SoundManager.cs" />

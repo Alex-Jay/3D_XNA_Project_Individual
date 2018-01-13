@@ -15,6 +15,7 @@ namespace GDLibrary
         Play,
         Pause,
         Stop,
-        Reset
+        Reset,
+        Off
     }
 }

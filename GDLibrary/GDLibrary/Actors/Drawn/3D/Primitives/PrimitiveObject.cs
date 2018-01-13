@@ -29,15 +29,7 @@ namespace GDLibrary
             {
                 this.vertexData = value;
             }
-        }
-
-        public BoundingSphere BoundingSphere
-        {
-            get
-            {
-                return new BoundingSphere(this.Transform.Translation, this.Transform.Scale.Length());
-            }
-        }
+        }   
         #endregion
 
         public PrimitiveObject(string id, ActorType actorType, Transform3D transform, 
@@ -47,7 +39,7 @@ namespace GDLibrary
             this.vertexData = vertexData;
         }
 
-        public new object Clone()
+        public override object GetDeepCopy()
         {
             PrimitiveObject actor = new PrimitiveObject("clone - " + ID, //deep
                this.ActorType, //deep
@@ -64,6 +56,11 @@ namespace GDLibrary
             }
 
             return actor;
+        }
+
+        public new object Clone()
+        {
+            return GetDeepCopy();
         }
     }
 }

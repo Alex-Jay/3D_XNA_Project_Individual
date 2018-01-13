@@ -9,6 +9,7 @@ using Microsoft.Xna.Framework.Media;
 using System;
 
 /*
+ * Diffuse color not pickup up when drawing primitive objects
  * TranslationLerpController
  * Is frustum culling working on primitive objects?
  * 
@@ -48,6 +49,7 @@ namespace GDApp
         public UIManager uiManager { get; private set; }
         public GamePadManager gamePadManager { get; private set; }
         public SoundManager soundManager { get; private set; }
+        public MySimplePickingManager pickingManager { get; private set; }
 
         //receives, handles and routes events
         public EventDispatcher eventDispatcher { get; private set; }
@@ -67,6 +69,9 @@ namespace GDApp
 
         private ManagerParameters managerParameters;
         private MyPrimitiveFactory primitiveFactory;
+        private PlayerCollidablePrimitiveObject playerCollidablePrimitiveObject;
+        private PrimitiveDebugDrawer collisionSkinDebugDrawer;
+
 
 
         #endregion
@@ -114,33 +119,45 @@ namespace GDApp
             //Managers
             InitializeManagers(screenResolution, screenType, isMouseVisible, numberOfGamePadPlayers);
 
-            //camera(s)
-            InitializeCameraDemo(screenResolution);
-
-            //menu and UI elements
+            //Add Menu and UI elements
             AddMenuElements();
             AddUIElements();
-#if DEBUG
-            InitializeDebugTextInfo();
-#endif
 
-            int demoNumber = 2;
-            if(demoNumber == 1)
-                LoadDemoOne();
+            //Load level contents
+            int demoNumber = 8;
+
+            if (demoNumber == 1)
+                LoadDemoOne();  //unlit primitives
             else if (demoNumber == 2)
-                LoadDemoTwo();
+                LoadDemoTwo(); //lit primitives
+            else if (demoNumber == 3)
+                LoadDemoThree(); //level loader
+            else if (demoNumber == 4)
+                LoadDemoFour();  //mouse picking
+            else if (demoNumber == 5)
+                LoadDemoFive(); //zones and camera change
+            else if (demoNumber == 6)
+                LoadDemoSix(); //colliding with solid objects like architecture
+            else if (demoNumber == 7)
+                LoadDemoSeven(); //collecting ammo
+            else 
+                LoadDemoEight(); //turning on the controllers of objects that we collide with
 
+            //Add Camera(s)
+            InitializeCameraDemo(screenResolution);
 
             //Publish Start Event(s)
             StartGame();
 
-            //#if DEBUG
-            //            InitializeDebugCollisionSkinInfo();
-            //#endif
+#if DEBUG
+            InitializeDebugTextInfo();
+            InitializeDebugCollisionSkinInfo();
+#endif
 
             base.Initialize();
         }
 
+       
         private void InitializeManagers(Integer2 screenResolution, 
             ScreenUtility.ScreenType screenType, bool isMouseVisible, int numberOfGamePadPlayers) //1 - 4
         {
@@ -153,7 +170,7 @@ namespace GDApp
 
             //create the object manager - notice that its not a drawablegamecomponent. See ScreeManager::Draw()
             this.objectManager = new ObjectManager(this, this.cameraManager, this.eventDispatcher, 10);
-
+            
             //add keyboard manager
             this.keyboardManager = new KeyboardManager(this);
             Components.Add(this.keyboardManager);
@@ -162,6 +179,7 @@ namespace GDApp
             this.screenManager = new ScreenManager(this, graphics, screenResolution, screenType,
                 this.objectManager, this.cameraManager, this.keyboardManager,
                 AppData.KeyPauseShowMenu, this.eventDispatcher, StatusType.Off);
+            this.screenManager.DrawOrder = 0;
             Components.Add(this.screenManager);
       
             //add mouse manager
@@ -179,20 +197,23 @@ namespace GDApp
             this.menuManager = new MyAppMenuManager(this, this.mouseManager, this.keyboardManager, this.cameraManager, spriteBatch, this.eventDispatcher, StatusType.Off);
             //set the main menu to be the active menu scene
             this.menuManager.SetActiveList("mainmenu");
+            this.menuManager.DrawOrder = 3;
             Components.Add(this.menuManager);
 
             //ui (e.g. reticule, inventory, progress)
             this.uiManager = new UIManager(this, this.spriteBatch, this.eventDispatcher, 10, StatusType.Off);
+            this.uiManager.DrawOrder = 4;
             Components.Add(this.uiManager);
-
         
             //this object packages together all managers to give the mouse object the ability to listen for all forms of input from the user, as well as know where camera is etc.
             this.managerParameters = new ManagerParameters(this.objectManager,
                 this.cameraManager, this.mouseManager, this.keyboardManager, this.gamePadManager, this.screenManager, this.soundManager);
 
-            #region Pick Manager
 
-            #endregion
+            //used for simple picking (i.e. non-JigLibX)
+            this.pickingManager = new MySimplePickingManager(this, this.eventDispatcher, StatusType.Update, this.managerParameters);
+            Components.Add(this.pickingManager);
+
         }
 
         private void LoadDictionaries()
@@ -225,7 +246,6 @@ namespace GDApp
             this.vertexDataDictionary = new Dictionary<string, IVertexData>();
 
         }
-
         private void LoadAssets()
         {
             #region Textures
@@ -240,6 +260,8 @@ namespace GDApp
             this.textureDictionary.Load("Assets/Textures/Skybox/sky");
             this.textureDictionary.Load("Assets/Textures/Skybox/front");
             this.textureDictionary.Load("Assets/Textures/Foliage/Trees/tree2");
+
+            this.textureDictionary.Load("Assets/Textures/Semitransparent/transparentstripes");
 
 
             //menu - buttons
@@ -258,7 +280,10 @@ namespace GDApp
 
             //dual texture demo - see Main::InitializeCollidableGround()
             this.textureDictionary.Load("Assets/GDDebug/Textures/checkerboard_greywhite");
-            
+
+            //levels
+            this.textureDictionary.Load("Assets/Textures/Level/level1");
+
 
 #if DEBUG
             //demo
@@ -279,7 +304,6 @@ namespace GDApp
             this.videoDictionary.Load("Assets/Video/sample");
             #endregion
         }
-
         private void LoadCurvesAndRails()
         {
             int cameraHeight = 5;
@@ -302,7 +326,6 @@ namespace GDApp
             #endregion
 
         }
-
         private void LoadViewports(Integer2 screenResolution)
         {
 
@@ -330,12 +353,10 @@ namespace GDApp
             this.viewPortDictionary.Add("PIP viewport", new Viewport((screenResolution.X - viewPortDimensions.X - rightHorizontalOffset), 
                 verticalOffset,  viewPortDimensions.X, viewPortDimensions.Y));
         }
-
         private void LoadFactories()
         {
             this.primitiveFactory = new MyPrimitiveFactory();
         }
-
 
 #if DEBUG
         private void InitializeDebugTextInfo()
@@ -343,37 +364,347 @@ namespace GDApp
             //add debug info in top left hand corner of the screen
             this.debugDrawer = new DebugDrawer(this, this.managerParameters, spriteBatch,
                 this.fontDictionary["debug"], Color.Black, new Vector2(5, 5), this.eventDispatcher, StatusType.Off);
+            this.debugDrawer.DrawOrder = 1;
             Components.Add(this.debugDrawer);
 
         }
 
+        //draws the frustum culling spheres, the collision primitive surfaces, and the zone object collision primitive surfaces based on booleans passed
         private void InitializeDebugCollisionSkinInfo()
         {
+            int primitiveCount = 0;
+            PrimitiveType primitiveType;
+
+            //used to draw spherical collision surfaces
+            IVertexData sphereVertexData = new BufferedVertexData<VertexPositionColor>(
+                graphics.GraphicsDevice, PrimitiveUtility.GetWireframeSphere(5, out primitiveType, out primitiveCount), primitiveType, primitiveCount);
+
+            this.collisionSkinDebugDrawer = new PrimitiveDebugDrawer(this, this.eventDispatcher, StatusType.Update | StatusType.Drawn,
+                this.managerParameters, true, true, true, sphereVertexData);
+            collisionSkinDebugDrawer.DrawOrder = 2;
+            Components.Add(collisionSkinDebugDrawer);
 
         }
 #endif
         #endregion
 
-        #region Load Demo Three
-        //load the contents for the demo specified
-        private void LoadDemoThree()
+        #region Load Demo Eight
+        private void LoadDemoEight()
         {
-           
+            //non-collidable ground
+            int worldScale = 250;
+            InitializeNonCollidableGround(worldScale);
+
+            //collidable and drivable player
+            InitializeCollidablePlayer();
+
+            //collidable objects that we can turn on when we hit them
+            InitializeCollidableActivatableObjects();
+        }
+
+        private void InitializeCollidableActivatableObjects()
+        {
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
+
+            //get the archetypal primitive object from the factory
+            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+
+            //set the texture that all clones will have
+            archetypeObject.EffectParameters.Texture = this.textureDictionary["checkerboard"];
+
+            Transform3D transform;
+            CollidablePrimitiveObject collidablePrimitiveObject;
+            IController controller;
+
+            for (int i = 0; i < 4; i++)
+            {
+                //remember the primitive is at Transform3D.Zero so we need to say where we want OUR player to start
+                transform = new Transform3D(new Vector3(5 * i + 10, 2, 0), Vector3.Zero, new Vector3(2, 2, 2), Vector3.UnitX, Vector3.UnitY);
+
+                //make the collidable primitive
+                collidablePrimitiveObject = new CollidablePrimitiveObject(archetypeObject.Clone() as PrimitiveObject,
+                    new BoxCollisionPrimitive(transform), this.objectManager);
+
+                //do we want an actor type for CDCR?
+                collidablePrimitiveObject.ActorType = ActorType.CollidableActivatable;
+
+                //set the position otherwise the boxes will all have archetypeObject.Transform positional properties
+                collidablePrimitiveObject.Transform = transform;
+
+                //#region Translation Lerp
+                ////if we want to make the boxes move (or do something else) then just attach a controller
+                //controller = new TranslationSineLerpController("transControl1", ControllerType.LerpTranslation,
+                //    new Vector3(0, 0, 1), new TrigonometricParameters(10, 0.1f, 180 * (i - 5)));
+                //collidablePrimitiveObject.AttachController(controller);
+                //#endregion
+
+                //#region Sine Lerp
+                ////lets add a color lerp controller but set it not to play until the player touches it
+                //controller = new ColorSineLerpController("colorControl1", ControllerType.SineColorLerp,
+                //    Color.Red, Color.Green, new TrigonometricParameters(1, 0.2f, 180 * (i - 5)));
+                ////lets turn off the color lerp until we touch the box - see PlayerCollidablePrimitiveObject::HandleCollisionResponse()
+                //controller.SetControllerPlayStatus(PlayStatusType.Off);
+                //collidablePrimitiveObject.AttachController(controller);
+                //#endregion
+
+                #region Pickup Controller
+                controller = new PickupController("pickupControl1", ControllerType.PickupDisappear, 15, 0.02f * Vector3.UnitY, 0.99f * Vector3.One, -0.02f, 0.1f);
+                controller.SetControllerPlayStatus(PlayStatusType.Off);
+                collidablePrimitiveObject.AttachController(controller);
+                #endregion
+
+                this.objectManager.Add(collidablePrimitiveObject);
+            }
+        }
+
+        #endregion
+
+        #region Load Demo Seven 
+        private void LoadDemoSeven()
+        {
+            //non-collidable ground
+            int worldScale = 250;
+            InitializeNonCollidableGround(worldScale);
+
+            //collidable and drivable player
+            InitializeCollidablePlayer();
+
+            //collidable ammo that we can pickup
+            InitializeCollidableAmmo();
+        }
+
+        private void InitializeCollidableAmmo()
+        {
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
+
+            //get the archetypal primitive object from the factory
+            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+
+            //set the texture that all clones will have
+            archetypeObject.EffectParameters.Texture = this.textureDictionary["checkerboard"];
+            //make diffuse green
+            archetypeObject.EffectParameters.DiffuseColor = Color.Green;
+
+            Transform3D transform;
+            CollidablePrimitiveObject collidablePrimitiveObject;
+
+            for (int i = -4; i < 6; i++)
+            {
+                //remember the primitive is at Transform3D.Zero so we need to say where we want OUR player to start
+                transform = new Transform3D(new Vector3(10, 2, 5 * i), Vector3.Zero, new Vector3(1, 2, 3), Vector3.UnitX, Vector3.UnitY);
+
+                //make the collidable primitive
+                collidablePrimitiveObject = new CollidablePrimitiveObject(archetypeObject.Clone() as PrimitiveObject,
+                    new BoxCollisionPrimitive(transform), this.objectManager);
+
+                //do we want an actor type for CDCR?
+                collidablePrimitiveObject.ActorType = ActorType.CollidableAmmo;
+
+                //set the position otherwise the boxes will all have archetypeObject.Transform positional properties
+                collidablePrimitiveObject.Transform = transform;
+
+                this.objectManager.Add(collidablePrimitiveObject);
+            }
         }
         #endregion
 
+        #region Load Demo Six 
+        private void LoadDemoSix()
+        {
+            //non-collidable ground
+            int worldScale = 250;
+            InitializeNonCollidableGround(worldScale);
+
+            //collidable and drivable player
+            InitializeCollidablePlayer();
+
+            //collidable ammo that we can pickup
+            InitializeCollidableDecorators();
+
+        }
+        #endregion
+
+        #region Load Demo Five 
+        private void LoadDemoFive()
+        {
+            //non-collidable ground
+            int worldScale = 250;
+            InitializeNonCollidableGround(worldScale);
+
+            //collidable and drivable player
+            InitializeCollidablePlayer();
+
+            //zones that we can use to generate events based on user position e.g. change the camera
+            InitializeCollidableZones();
+        }
+        private void InitializeCollidableDecorators()
+        {
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
+
+            //get the archetypal primitive object from the factory
+            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+
+            //set the texture that all clones will have
+            archetypeObject.EffectParameters.Texture = this.textureDictionary["checkerboard"];
+
+            Transform3D transform;
+            CollidablePrimitiveObject collidablePrimitiveObject;
+
+            for (int i = 0; i < 10; i++)
+            {
+                //remember the primitive is at Transform3D.Zero so we need to say where we want OUR player to start
+                transform = new Transform3D(new Vector3(5 * i + 10, 2, 0), Vector3.Zero, new Vector3(2, 2, 2), Vector3.UnitX, Vector3.UnitY);
+
+                //make the collidable primitive
+                collidablePrimitiveObject = new CollidablePrimitiveObject(archetypeObject.Clone() as PrimitiveObject, 
+                    new BoxCollisionPrimitive(transform), this.objectManager);
+
+                //do we want an actor type for CDCR?
+                collidablePrimitiveObject.ActorType = ActorType.CollidableDecorator;
+
+                //set the position otherwise the boxes will all have archetypeObject.Transform positional properties
+                collidablePrimitiveObject.Transform = transform;
+
+                this.objectManager.Add(collidablePrimitiveObject);
+            }
+        }
+
+        private void InitializeCollidableZones()
+        {
+            Transform3D transform = null;
+            SimpleZoneObject simpleZoneObject = null;
+            ICollisionPrimitive collisionPrimitive = null;
+
+            //place the zone and scale it based on how big you want the zone to be
+            transform = new Transform3D(new Vector3(-10, 2, 0), new Vector3(1, 1, 1));
+
+            //we can have a sphere or a box - its entirely up to the developer
+            collisionPrimitive = new SphereCollisionPrimitive(transform, 2);
+            //collisionPrimitive = new BoxCollisionPrimitive(transform);
+
+            simpleZoneObject = new SimpleZoneObject(AppData.SwitchToThirdPersonZoneID, ActorType.Zone, transform,
+                StatusType.Drawn | StatusType.Update, collisionPrimitive);//, mParams);
+
+            this.objectManager.Add(simpleZoneObject);
+        }
+
+        #endregion
+
+        #region Load Demo Four 
+        private void LoadDemoFour()
+        {
+            //add helpers to help us orient ourself
+            InitializeHelperPrimitives();
+
+            //non-collidable ground
+            int worldScale = 250;
+            InitializeNonCollidableGround(worldScale);
+
+            //collidable and drivable player
+            InitializeCollidablePlayer();
+        }
+
+        private void InitializeNonCollidableGround(int worldScale)
+        {
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
+
+            //get the primitive object from the factory (remember the factory returns a clone)
+            PrimitiveObject ground = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+
+            //set the texture
+            ground.EffectParameters.Texture = this.textureDictionary["grass1"];
+
+            //set the transform
+            //since the object is 1 unit in height, we move it down to Y-axis == -0.5f so that the top of the surface is at Y == 0
+            ground.Transform = new Transform3D(new Vector3(0, -0.5f, 0), new Vector3(worldScale, 1, worldScale));
+
+            //set an ID if we want to access this later
+            ground.ID = "non-collidable ground";
+
+            //add 
+            this.objectManager.Add(ground);
+
+        }
+
+        private void InitializeCollidablePlayer()
+        {
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
+            
+            //get the archetypal primitive object from the factory
+            PrimitiveObject primitiveObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+       
+            //remember the primitive is at Transform3D.Zero so we need to say where we want OUR player to start
+            Transform3D transform = new Transform3D(new Vector3(5, 2, 0), Vector3.Zero, new Vector3(1, 4, 1), Vector3.UnitX, Vector3.UnitY);
+
+            //instanciate a box primitive at player position
+            BoxCollisionPrimitive collisionPrimitive = new BoxCollisionPrimitive(transform);
+            
+            //make the player object and store as field for use by the 3rd person camera - see camera initialization
+            this.playerCollidablePrimitiveObject = new PlayerCollidablePrimitiveObject(primitiveObject, collisionPrimitive, 
+                this.managerParameters, AppData.PlayerOneMoveKeys, AppData.PlayerMoveSpeed, AppData.PlayerRotationSpeed);
+            this.playerCollidablePrimitiveObject.ActorType = ActorType.Player;
+            this.playerCollidablePrimitiveObject.Transform = transform;
+
+            //do we want a texture?
+            playerCollidablePrimitiveObject.EffectParameters.Texture = this.textureDictionary["ml"];
+
+            //set an ID if we want to access this later
+            playerCollidablePrimitiveObject.ID = "collidable player";
+
+            //add to the object manager
+            this.objectManager.Add(playerCollidablePrimitiveObject);
+        }
+        #endregion
+
+        #region Load Demo Three
+        //load the contents for the level loader demo
+        private void LoadDemoThree()
+        {
+            //add helpers to help us orient ourself
+            InitializeHelperPrimitives();
+
+            InitializeLevelLoaderPrimitives();
+        }
+
+        private void InitializeLevelLoaderPrimitives()
+        {
+            LevelLoader levelLoader = new LevelLoader(this.textureDictionary, "level1");
+
+            //get the effect relevant to this primitive type (i.e. colored, textured, wireframe, lit, unlit)
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
+            
+            //get the archetype from the factory
+            PrimitiveObject crateA = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+
+            //set texture once so all clones have the same
+            crateA.EffectParameters.Texture = this.textureDictionary["crate1"];
+
+            //define what each pixel color should generate
+            levelLoader.AddColorActor3DPair(Color.Red, crateA);
+
+            //process the pixels in the level texture and return a list of actors
+            List<Actor3D> listOfActors = levelLoader.Process(new Vector2(1, 1), 0, Vector3.Zero);
+
+            //add the actors to the object manager
+            this.objectManager.Add(listOfActors);
+        }
+        #endregion
 
         #region Load Demo Two
-        //load the contents for the demo specified
+        //load the contents for lit primitive demo
         private void LoadDemoTwo()
         {
             //add helpers to help us orient ourself
             InitializeHelperPrimitives();
 
-            //add lit primitives
+            ////add lit primitives
             InitializeLitPrimitives();
         }
-
         private void InitializeLitPrimitives()
         {
             PrimitiveObject clonedObject = null;
@@ -382,18 +713,19 @@ namespace GDApp
             BasicEffectParameters effectParameters = this.effectDictionary[AppData.LitTexturedPrimitivesEffectID] as BasicEffectParameters;
 
             //get the archetype from the factory
-            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
+            PrimitiveObject archetypeCrate = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.NormalCube, effectParameters);
 
             //set texture once so all clones have the same
-            archetypeObject.EffectParameters.Texture = this.textureDictionary["crate1"];
+            archetypeCrate.EffectParameters.Texture = this.textureDictionary["crate1"];
 
             //make some copies
-            for (int i = 1; i <= 100; i++)
+            for (int i = 1; i <= 50; i++)
             {
-                clonedObject = archetypeObject.Clone() as PrimitiveObject;
+                //copy
+                clonedObject = archetypeCrate.Clone() as PrimitiveObject;
 
                 //re-position, scale
-                clonedObject.Transform.Translation = new Vector3(-2 * i, 0, 0);
+                clonedObject.Transform.Translation = new Vector3(-4 * i, 0, 0);
 
                 if (i % 2 == 0)
                 {
@@ -407,7 +739,7 @@ namespace GDApp
         #endregion
 
         #region Load Demo One
-        //load the contents for the demo specified
+        //load the contents for the unlit primitives demo
         private void LoadDemoOne()
         {
             //add helpers to help us orient ourself
@@ -420,22 +752,6 @@ namespace GDApp
             InitializeCubePrimitives();
 
         }
-
-        private void InitializeHelperPrimitives()
-        {
-            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnLitColoredPrimitivesEffectID] as BasicEffectParameters;
-            //since its wireframe we dont set color, texture, alpha etc.
-
-            //get a reference to the origin helper
-            PrimitiveObject wireframeOrigin = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.WireframeOrigin, effectParameters);
-            
-            //make it a little more visible!
-            wireframeOrigin.Transform.Scale *= 2;
-            
-            //add to the object manager
-            this.objectManager.Add(wireframeOrigin);
-
-        }
         private void InitializeQuadPrimitives()
         {
             PrimitiveObject clonedObject = null;
@@ -445,12 +761,13 @@ namespace GDApp
             effectParameters.DiffuseColor = Color.Red;
 
             //get the archetype from the factory
-            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.ColoredQuad, effectParameters);
+            PrimitiveObject archetypeQuad = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.ColoredQuad, effectParameters);
 
             //make some copies
             for (int i = 1; i <= 4; i++)
             {
-                clonedObject = archetypeObject.Clone() as PrimitiveObject;
+                //copy
+                clonedObject = archetypeQuad.Clone() as PrimitiveObject;
                 
                 //change id, re-position, scale and change alpha for fun
                 clonedObject.ID = "Spinning thing " + i;
@@ -506,6 +823,31 @@ namespace GDApp
         }
         #endregion
 
+        #region Layout Helpers
+        private void InitializeHelperPrimitives()
+        {
+            BasicEffectParameters effectParameters = this.effectDictionary[AppData.UnLitColoredPrimitivesEffectID] as BasicEffectParameters;
+            //since its wireframe we dont set color, texture, alpha etc.
+
+            //get the archetype from the factory
+            PrimitiveObject archetypeObject = this.primitiveFactory.GetArchetypePrimitiveObject(graphics.GraphicsDevice, ShapeType.WireframeOrigin, effectParameters);
+
+            //clone to set the unique properties of the origin helper
+            PrimitiveObject originObject = archetypeObject.Clone() as PrimitiveObject;
+
+            //make it a little more visible!
+            originObject.Transform.Translation = new Vector3(0, 10, 0);
+            originObject.Transform.Scale *= 4;
+
+            //set an ID if we want to access this later
+            originObject.ID = "origin helper";
+
+            //add to the object manager
+            this.objectManager.Add(originObject);
+
+        }
+        #endregion
+
         #region Initialize Cameras
         private void InitializeCamera(Integer2 screenResolution, string id, Viewport viewPort, Transform3D transform, IController controller, float drawDepth)
         {
@@ -520,12 +862,30 @@ namespace GDApp
         //adds three camera from 3 different perspectives that we can cycle through
         private void InitializeCameraDemo(Integer2 screenResolution)
         {
-            Transform3D transform = new Transform3D(20*Vector3.UnitZ, -Vector3.UnitZ, Vector3.UnitY);
+            #region Flight Camera
+            Transform3D transform = new Transform3D(new Vector3(0, 5, 20), -Vector3.UnitZ, Vector3.UnitY);
 
             IController controller = new FlightCameraController("fcc", ControllerType.FirstPerson, AppData.CameraMoveKeys,
                 AppData.CameraMoveSpeed, AppData.CameraStrafeSpeed, AppData.CameraRotationSpeed, this.managerParameters);
 
-            InitializeCamera(screenResolution, "flight camera 1", this.viewPortDictionary["full viewport"], transform, controller, 0);
+            InitializeCamera(screenResolution, AppData.FlightCameraID, this.viewPortDictionary["full viewport"], transform, controller, 0);
+            #endregion
+
+            #region Third Person Camera
+            if (this.playerCollidablePrimitiveObject != null) //if demo 4 then we have player to track
+            {
+                //position is irrelevant since its based on tracking a player object
+                transform = Transform3D.Zero;
+
+                controller = new ThirdPersonController("tpc", ControllerType.ThirdPerson, this.playerCollidablePrimitiveObject,
+                    AppData.CameraThirdPersonDistance, AppData.CameraThirdPersonScrollSpeedDistanceMultiplier,
+                    AppData.CameraThirdPersonElevationAngleInDegrees, AppData.CameraThirdPersonScrollSpeedElevationMultiplier,
+                    LerpSpeed.Medium, LerpSpeed.Fast, this.mouseManager);
+
+                InitializeCamera(screenResolution, AppData.ThirdPersonCameraID, this.viewPortDictionary["full viewport"], transform, controller, 0);
+            }
+            #endregion
+
         }
 
         #endregion
@@ -546,12 +906,12 @@ namespace GDApp
             EventDispatcher.Publish(new EventData(EventActionType.OnPause, EventCategoryType.MainMenu));
 
             //publish an event to set the camera
-            object[] additionalEventParamsB = { "collidable first person camera 1"};
+            object[] additionalEventParamsB = { "flight camera 1"};
             EventDispatcher.Publish(new EventData(EventActionType.OnCameraSetActive, EventCategoryType.Camera, additionalEventParamsB));
             //we could also just use the line below, but why not use our event dispatcher?
             //this.cameraManager.SetActiveCamera(x => x.ID.Equals("collidable first person camera 1"));
         }
-#endregion
+        #endregion
 
         #region Menu & UI
         private void AddMenuElements()
@@ -869,8 +1229,45 @@ namespace GDApp
             if(this.gamePadManager != null && this.gamePadManager.IsPlayerConnected(PlayerIndex.One) && this.gamePadManager.IsButtonPressed(PlayerIndex.One, Buttons.Back))
                 this.Exit();
 
+#if DEMO
+            DoDebugToggleDemo();
+            DoCameraCycle();
+#endif
+
             base.Update(gameTime);
         }
+
+        private void DoCameraCycle()
+        {
+            if (this.keyboardManager.IsFirstKeyPress(Keys.F1))
+            {
+                EventDispatcher.Publish(new EventData(EventActionType.OnCameraCycle, EventCategoryType.Camera));
+            }
+        }
+
+        private void DoDebugToggleDemo()
+        {
+            if(this.keyboardManager.IsFirstKeyPress(Keys.F5))
+            {
+                //toggle the boolean variables directly in the debug drawe to show CDCR surfaces
+                this.collisionSkinDebugDrawer.ShowCollisionSkins = !this.collisionSkinDebugDrawer.ShowCollisionSkins;
+                this.collisionSkinDebugDrawer.ShowZones = !this.collisionSkinDebugDrawer.ShowZones;
+            }
+
+            if (this.keyboardManager.IsFirstKeyPress(Keys.F6))
+            {
+                //toggle the boolean variables directly in the debug drawer to show the frustum culling bounding spheres
+                this.collisionSkinDebugDrawer.ShowFrustumCullingSphere = !this.collisionSkinDebugDrawer.ShowFrustumCullingSphere;
+            }
+
+            if (this.keyboardManager.IsFirstKeyPress(Keys.F7))
+            {
+                //we can turn all debug off 
+                EventDispatcher.Publish(new EventData(EventActionType.OnToggleDebug, EventCategoryType.Debug));
+            }
+
+        }
+
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(GoogleGreenColor);

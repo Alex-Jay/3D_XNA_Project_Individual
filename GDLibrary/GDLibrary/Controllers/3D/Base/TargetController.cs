@@ -36,6 +36,21 @@ namespace GDLibrary
             this.targetActor = targetActor;
         }
 
-        //Add Equals, Clone, ToString, GetHashCode...
+        //Add Equals, GetHashCode...
+
+        public override object GetDeepCopy()
+        {
+            IController clone = new TargetController("clone - " + this.ID, //deep
+                this.ControllerType, //deep
+                this.targetActor); //reference
+
+            clone.SetControllerPlayStatus(this.PlayStatusType);
+
+            return clone;
+        }
+        public new object Clone()
+        {
+            return GetDeepCopy();
+        }
     }
 }

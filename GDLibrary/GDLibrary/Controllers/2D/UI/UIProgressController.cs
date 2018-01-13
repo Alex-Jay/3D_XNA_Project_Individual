@@ -9,6 +9,7 @@ namespace GDLibrary
         private int maxValue, startValue, currentValue;
         private UITextureObject parentUITextureActor;
         private bool bDirty = false;
+        private EventDispatcher eventDispatcher;
         #endregion
 
         #region Properties
@@ -54,6 +55,8 @@ namespace GDLibrary
             this.StartValue = startValue;
             this.MaxValue = maxValue;
             this.CurrentValue = startValue;
+
+            this.eventDispatcher = eventDispatcher;
 
             //register with the event dispatcher for the events of interest
             RegisterForEventHandling(eventDispatcher);
@@ -141,6 +144,24 @@ namespace GDLibrary
             //now set the amount of visible rectangle using the current value
             this.parentUITextureActor.SourceRectangleWidth
                 = (int)(widthMultiplier * this.parentUITextureActor.OriginalSourceRectangle.Width);
-        } 
+        }
+
+
+        public override object GetDeepCopy()
+        {
+            IController clone = new UIProgressController("clone - " + this.ID, //deep
+                this.ControllerType, //deep
+                this.startValue, this.maxValue, //deep 
+                this.eventDispatcher); //reference
+
+            clone.SetControllerPlayStatus(this.PlayStatusType);
+
+            return clone;
+        }
+
+        public new object Clone()
+        {
+            return GetDeepCopy();
+        }
     }
 }

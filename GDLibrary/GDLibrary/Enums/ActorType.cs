@@ -37,6 +37,7 @@ namespace GDLibrary
         CollidableProjectile,
         CollidableDoor,
         CollidableAmmo,
+        CollidableActivatable,   //something that we can turn on (i.e. its controllers) when we touch it
         PrimitiveHelper,
         PrimitiveQuad,
         PrimitiveCube,

@@ -53,7 +53,7 @@ namespace GDLibrary
         public static readonly Keys[] CameraMoveKeys_Alt1 = { Keys.T, Keys.G, Keys.F, Keys.H };
 
         public static readonly float CameraThirdPersonScrollSpeedDistanceMultiplier = 0.00125f;
-        public static readonly float CameraThirdPersonScrollSpeedElevatationMultiplier = 0.01f;
+        public static readonly float CameraThirdPersonScrollSpeedElevationMultiplier = 0.01f;
         public static readonly float CameraThirdPersonDistance = 12;
         public static readonly float CameraThirdPersonElevationAngleInDegrees = 150;
 
@@ -74,7 +74,7 @@ namespace GDLibrary
 
         public static readonly Keys[] PlayerOneMoveKeys = { Keys.U, Keys.J, Keys.H, Keys.K, Keys.Y, Keys.I, Keys.N, Keys.M};
         public static readonly Keys[] PlayerTwoMoveKeys = { Keys.NumPad8, Keys.NumPad5, Keys.NumPad4, Keys.NumPad6, Keys.NumPad7, Keys.NumPad9, Keys.NumPad2, Keys.NumPad3 };
-        public static readonly float PlayerMoveSpeed = 0.1f;
+        public static readonly float PlayerMoveSpeed = 0.02f;
         public static readonly float PlayerStrafeSpeed = 0.7f * PlayerMoveSpeed;
         public static readonly float PlayerRotationSpeed = 0.08f;
         public static readonly float PlayerRadius = 1.5f;
@@ -146,6 +146,15 @@ namespace GDLibrary
 
         //used by primitives based on VertexPositionNormalTexture vertex type
         public static readonly string LitTexturedPrimitivesEffectID = "lit textured ";
+        #endregion
+
+        #region Camera IDs
+        public static readonly string FlightCameraID = "flight camera 1";
+        public static readonly string ThirdPersonCameraID = "third person camera 1";
+        #endregion
+
+        #region Zone IDs
+        public static readonly string SwitchToThirdPersonZoneID = "third person camera zone";
         #endregion
 
     }

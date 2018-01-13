@@ -59,6 +59,16 @@ namespace GDLibrary
             this.objectManager = objectManager;
         }
 
+        //used to make a collidable primitives from an existing PrimitiveObject (i.e. the type returned by the PrimitiveFactory
+        public CollidablePrimitiveObject(PrimitiveObject primitiveObject, ICollisionPrimitive collisionPrimitive, ObjectManager objectManager)
+            : base(primitiveObject.ID, primitiveObject.ActorType, primitiveObject.Transform, primitiveObject.EffectParameters,
+                  primitiveObject.StatusType, primitiveObject.VertexData)
+        {
+            this.collisionPrimitive = collisionPrimitive;
+            //unusual to pass this in but we use it to test for collisions - see Update();
+            this.objectManager = objectManager;
+        }
+
 
         public override void Update(GameTime gameTime)
         {
@@ -143,16 +153,31 @@ namespace GDLibrary
                 this.Transform.RotateAroundYBy(this.Transform.RotateIncrement);
         }
 
+        public override object GetDeepCopy()
+        {
+            CollidablePrimitiveObject actor = new CollidablePrimitiveObject("clone - " + ID, //deep
+                      this.ActorType, //deep
+                      (Transform3D)this.Transform.Clone(), //deep
+                      (EffectParameters)this.EffectParameters.Clone(), //deep
+                      this.StatusType, //deep
+                      this.VertexData, //shallow - its ok if objects refer to the same vertices
+                      (ICollisionPrimitive)this.CollisionPrimitive.Clone(), //deep
+                      this.objectManager); //shallow - reference
+
+
+            if (this.ControllerList != null)
+            {
+                //clone each of the (behavioural) controllers
+                foreach (IController controller in this.ControllerList)
+                    actor.AttachController((IController)controller.Clone());
+            }
+
+            return actor;
+        }
+
         public new object Clone()
         {
-            return new CollidablePrimitiveObject("clone - " + ID, //deep
-             this.ActorType, //deep
-             (Transform3D)this.Transform.Clone(), //deep
-             (EffectParameters)this.EffectParameters.Clone(), //deep
-             this.StatusType, //deep
-             this.VertexData, //shallow - its ok if objects refer to the same vertices
-             (ICollisionPrimitive)this.CollisionPrimitive.Clone(), //deep
-             this.objectManager); //shallow - reference
+            return GetDeepCopy();
         }
     }
 }

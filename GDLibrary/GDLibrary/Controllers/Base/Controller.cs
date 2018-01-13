@@ -7,7 +7,6 @@ Bugs:			None
 Fixes:			None
 */
 
-using System;
 using Microsoft.Xna.Framework;
 namespace GDLibrary
 {
@@ -16,6 +15,7 @@ namespace GDLibrary
         #region Fields
         private string id;
         private ControllerType controllerType;
+        private PlayStatusType playStatusType;
         #endregion
 
         #region Properties
@@ -41,12 +41,31 @@ namespace GDLibrary
                 this.controllerType = value;
             }
         }
+        public PlayStatusType PlayStatusType
+        {
+            get
+            {
+                return this.playStatusType;
+            }
+            set
+            {
+                this.playStatusType = value;
+            }
+        }
         #endregion
 
         public Controller(string id, ControllerType controllerType)
+            : this(id, controllerType, PlayStatusType.Play)
+        {
+         
+        }
+
+        //allows us to specify the initial state for a controller (e.g. play, off)
+        public Controller(string id, ControllerType controllerType, PlayStatusType playStatusType)
         {
             this.id = id;
             this.controllerType = controllerType;
+            this.playStatusType = playStatusType;
         }
 
 
@@ -60,12 +79,20 @@ namespace GDLibrary
             //does nothing - no point in child classes calling this - see UIScaleLerpController::Reset()
         }
 
-        public virtual bool SetControllerPlayStatus(PlayStatusType playStatusType)
+        public virtual void SetControllerPlayStatus(PlayStatusType playStatusType)
         {
-            //does nothing
-            return false;
+            this.playStatusType = playStatusType;
         }
 
+        public virtual PlayStatusType GetControllerPlayStatus()
+        {
+            return this.playStatusType;
+        }
+
+        public virtual ControllerType GetControllerType()
+        {
+            return this.controllerType;
+        }
         public virtual void Update(GameTime gameTime, IActor actor)
         {
             //does nothing - no point in child classes calling this.
@@ -93,9 +120,13 @@ namespace GDLibrary
             return hash;
         }
 
-        public virtual object Clone()
+        public virtual object GetDeepCopy()
         {
-            return new Controller("clone - " + this.ID, this.controllerType);
+            return new Controller("clone - " + this.ID, this.controllerType, this.playStatusType);
+        }
+        public object Clone()
+        {
+            return GetDeepCopy();
         }
 
         //allows controllers to listen for events

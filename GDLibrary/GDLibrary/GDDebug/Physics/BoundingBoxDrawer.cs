@@ -27,6 +27,11 @@ namespace GDLibrary
     {
         public static BoundingBoxBuffers CreateBoundingBoxBuffers(BoundingBox boundingBox, GraphicsDevice graphicsDevice)
         {
+            return CreateBoundingBoxBuffers(boundingBox, graphicsDevice, Color.White);
+        }
+
+        public static BoundingBoxBuffers CreateBoundingBoxBuffers(BoundingBox boundingBox, GraphicsDevice graphicsDevice, Color color)
+        {
             BoundingBoxBuffers boundingBoxBuffers = new BoundingBoxBuffers();
 
             boundingBoxBuffers.PrimitiveCount = 24;
@@ -45,68 +50,68 @@ namespace GDLibrary
             Vector3[] corners = boundingBox.GetCorners();
 
             // Corner 1.
-            AddVertex(vertices, corners[0]);
-            AddVertex(vertices, corners[0] + xOffset);
-            AddVertex(vertices, corners[0]);
-            AddVertex(vertices, corners[0] - yOffset);
-            AddVertex(vertices, corners[0]);
-            AddVertex(vertices, corners[0] - zOffset);
+            AddVertex(vertices, corners[0], color);
+            AddVertex(vertices, corners[0] + xOffset, color);
+            AddVertex(vertices, corners[0], color);
+            AddVertex(vertices, corners[0] - yOffset, color);
+            AddVertex(vertices, corners[0], color);
+            AddVertex(vertices, corners[0] - zOffset, color);
 
             // Corner 2.
-            AddVertex(vertices, corners[1]);
-            AddVertex(vertices, corners[1] - xOffset);
-            AddVertex(vertices, corners[1]);
-            AddVertex(vertices, corners[1] - yOffset);
-            AddVertex(vertices, corners[1]);
-            AddVertex(vertices, corners[1] - zOffset);
+            AddVertex(vertices, corners[1], color);
+            AddVertex(vertices, corners[1] - xOffset, color);
+            AddVertex(vertices, corners[1], color);
+            AddVertex(vertices, corners[1] - yOffset, color);
+            AddVertex(vertices, corners[1], color);
+            AddVertex(vertices, corners[1] - zOffset, color);
 
             // Corner 3.
-            AddVertex(vertices, corners[2]);
-            AddVertex(vertices, corners[2] - xOffset);
-            AddVertex(vertices, corners[2]);
-            AddVertex(vertices, corners[2] + yOffset);
-            AddVertex(vertices, corners[2]);
-            AddVertex(vertices, corners[2] - zOffset);
+            AddVertex(vertices, corners[2], color);
+            AddVertex(vertices, corners[2] - xOffset, color);
+            AddVertex(vertices, corners[2], color);
+            AddVertex(vertices, corners[2] + yOffset, color);
+            AddVertex(vertices, corners[2], color);
+            AddVertex(vertices, corners[2] - zOffset, color);
 
             // Corner 4.
-            AddVertex(vertices, corners[3]);
-            AddVertex(vertices, corners[3] + xOffset);
-            AddVertex(vertices, corners[3]);
-            AddVertex(vertices, corners[3] + yOffset);
-            AddVertex(vertices, corners[3]);
-            AddVertex(vertices, corners[3] - zOffset);
+            AddVertex(vertices, corners[3], color);
+            AddVertex(vertices, corners[3] + xOffset, color);
+            AddVertex(vertices, corners[3], color);
+            AddVertex(vertices, corners[3] + yOffset, color);
+            AddVertex(vertices, corners[3], color);
+            AddVertex(vertices, corners[3] - zOffset, color);
 
             // Corner 5.
-            AddVertex(vertices, corners[4]);
-            AddVertex(vertices, corners[4] + xOffset);
-            AddVertex(vertices, corners[4]);
-            AddVertex(vertices, corners[4] - yOffset);
-            AddVertex(vertices, corners[4]);
-            AddVertex(vertices, corners[4] + zOffset);
+            AddVertex(vertices, corners[4], color);
+            AddVertex(vertices, corners[4] + xOffset, color);
+            AddVertex(vertices, corners[4], color);
+            AddVertex(vertices, corners[4] - yOffset, color);
+            AddVertex(vertices, corners[4], color);
+            AddVertex(vertices, corners[4] + zOffset, color);
 
             // Corner 6.
-            AddVertex(vertices, corners[5]);
-            AddVertex(vertices, corners[5] - xOffset);
-            AddVertex(vertices, corners[5]);
-            AddVertex(vertices, corners[5] - yOffset);
-            AddVertex(vertices, corners[5]);
-            AddVertex(vertices, corners[5] + zOffset);
+            AddVertex(vertices, corners[5], color);
+            AddVertex(vertices, corners[5] - xOffset, color);
+            AddVertex(vertices, corners[5], color);
+            AddVertex(vertices, corners[5] - yOffset, color);
+            AddVertex(vertices, corners[5], color);
+            AddVertex(vertices, corners[5] + zOffset, color);
 
             // Corner 7.
-            AddVertex(vertices, corners[6]);
-            AddVertex(vertices, corners[6] - xOffset);
-            AddVertex(vertices, corners[6]);
-            AddVertex(vertices, corners[6] + yOffset);
-            AddVertex(vertices, corners[6]);
-            AddVertex(vertices, corners[6] + zOffset);
+            AddVertex(vertices, corners[6], color);
+            AddVertex(vertices, corners[6] - xOffset, color);
+            AddVertex(vertices, corners[6], color);
+            AddVertex(vertices, corners[6] + yOffset, color);
+            AddVertex(vertices, corners[6], color);
+            AddVertex(vertices, corners[6] + zOffset, color);
 
             // Corner 8.
-            AddVertex(vertices, corners[7]);
-            AddVertex(vertices, corners[7] + xOffset);
-            AddVertex(vertices, corners[7]);
-            AddVertex(vertices, corners[7] + yOffset);
-            AddVertex(vertices, corners[7]);
-            AddVertex(vertices, corners[7] + zOffset);
+            AddVertex(vertices, corners[7], color);
+            AddVertex(vertices, corners[7] + xOffset, color);
+            AddVertex(vertices, corners[7], color);
+            AddVertex(vertices, corners[7] + yOffset, color);
+            AddVertex(vertices, corners[7], color);
+            AddVertex(vertices, corners[7] + zOffset, color);
 
             vertexBuffer.SetData(vertices.ToArray());
             boundingBoxBuffers.Vertices = vertexBuffer;
@@ -119,23 +124,22 @@ namespace GDLibrary
             return boundingBoxBuffers;
         }
 
-        private static void AddVertex(List<VertexPositionColor> vertices, Vector3 position)
+        private static void AddVertex(List<VertexPositionColor> vertices, Vector3 position, Color color)
         {
-            vertices.Add(new VertexPositionColor(position, Color.White));
+            vertices.Add(new VertexPositionColor(position, color));
         }
 
         public static void DrawBoundingBox(BoundingBoxBuffers buffers, BasicEffect effect, GraphicsDevice graphicsDevice, Camera3D camera)
         {
             graphicsDevice.SetVertexBuffer(buffers.Vertices);
             graphicsDevice.Indices = buffers.Indices;
-
             effect.World = Matrix.Identity;
             effect.View = camera.View;
             effect.Projection = camera.ProjectionParameters.Projection;
+            effect.CurrentTechnique.Passes[0].Apply();
 
             foreach (EffectPass pass in effect.CurrentTechnique.Passes)
             {
-                pass.Apply();
                 graphicsDevice.DrawIndexedPrimitives(PrimitiveType.LineList, 0, 0,
                     buffers.VertexCount, 0, buffers.PrimitiveCount);
             }
