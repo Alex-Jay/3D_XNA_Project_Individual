@@ -238,7 +238,8 @@ namespace GDApp
             //environment
             this.textureDictionary.Load("Assets/Textures/Foliage/Ground/road_texture"); //demo use of the shorter form of Load() that generates key from asset name
             this.textureDictionary.Load("Assets/Textures/Architecture/Walls/wall_obstacle");
-            
+            this.textureDictionary.Load("Assets/Textures/Props/Crates/crate3");
+
             //menu - buttons
             this.textureDictionary.Load("Assets/Textures/UI/Menu/Buttons/genericbtn");
 
@@ -1049,7 +1050,7 @@ namespace GDApp
             this.playerCollidablePrimitiveObject.Transform = transform;
 
             //do we want a texture?
-            playerCollidablePrimitiveObject.EffectParameters.Texture = this.textureDictionary["ml"];
+            playerCollidablePrimitiveObject.EffectParameters.Texture = this.textureDictionary["crate3"];
 
             //set an ID if we want to access this later
             playerCollidablePrimitiveObject.ID = id;
@@ -1132,8 +1133,6 @@ namespace GDApp
             mainScore = 0;
 
             Components.Clear();
-
-            //this.soundManager = null;
 
             //this.cameraManager = null;
 
